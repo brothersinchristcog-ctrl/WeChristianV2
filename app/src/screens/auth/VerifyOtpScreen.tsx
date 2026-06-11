@@ -18,12 +18,14 @@ import auth from '@react-native-firebase/auth';
 import { AuthStackParamList } from '../../navigation/AuthNavigator';
 import Theme from '../../theme/Theme';
 import FirestoreService from '../../services/FirestoreService';
+import { useAuth } from '../../context/AuthContext';
 import { ChevronLeft, ShieldCheck, RefreshCw } from 'lucide-react-native';
 
 type VerifyOtpScreenProps = NativeStackScreenProps<AuthStackParamList, 'VerifyOtp'>;
 
 export default function VerifyOtpScreen({ route, navigation }: VerifyOtpScreenProps) {
   const { confirmation, phoneNumber, contactId, memberName } = route.params;
+  const { member } = useAuth();
   const [code, setCode] = useState('');
   const [loading, setLoading] = useState(false);
   const [status, setStatus] = useState('');
@@ -44,8 +46,8 @@ export default function VerifyOtpScreen({ route, navigation }: VerifyOtpScreenPr
         setStatus('Linking church profile...');
         try {
           await FirestoreService.syncMember(contactId, result.user.uid);
-          
-          // Save profile details to Firestore so Push Notifications can match them by name
+
+          // Save profile details to Firestore
           const firestore = require('@react-native-firebase/firestore').default;
           await firestore().collection('users').doc(result.user.uid).set({
             name: memberName || '',
@@ -57,6 +59,15 @@ export default function VerifyOtpScreen({ route, navigation }: VerifyOtpScreenPr
         } catch (syncError) {
           console.error('❌ Sync failed:', syncError);
         }
+      }
+
+      // After OTP confirmed: if user has no churchId yet, send them to ChurchSelection
+      if (result?.user) {
+        const profile = await FirestoreService.getMemberProfile(result.user.uid);
+        if (!profile?.churchId) {
+          navigation.replace('ChurchSelection');
+        }
+        // If churchId exists, AuthContext will detect the signed-in user and navigate to Main automatically
       }
     } catch (error: any) {
       console.error('❌ Error:', error.code);

@@ -4,13 +4,19 @@ import LoginScreen from '../screens/auth/LoginScreen';
 import VerifyOtpScreen from '../screens/auth/VerifyOtpScreen';
 import SignUpScreen from '../screens/auth/SignUpScreen';
 import RegistrationSuccessScreen from '../screens/auth/RegistrationSuccessScreen';
+import ChurchSelectionScreen from '../screens/auth/ChurchSelectionScreen';
+import CreateChurchScreen from '../screens/auth/CreateChurchScreen';
+import JoinSuccessScreen from '../screens/auth/JoinSuccessScreen';
 import Theme from '../theme/Theme';
 
 export type AuthStackParamList = {
   Login: undefined;
   SignUp: undefined;
   RegistrationSuccess: undefined;
-  VerifyOtp: { confirmation: any, phoneNumber: string, contactId?: string, memberName?: string };
+  VerifyOtp: { confirmation: any; phoneNumber: string; contactId?: string; memberName?: string };
+  ChurchSelection: undefined;
+  CreateChurch: undefined;
+  JoinSuccess: { churchName: string; isNewChurch?: boolean; churchCode?: string };
 };
 
 const Stack = createNativeStackNavigator<AuthStackParamList>();
@@ -24,25 +30,40 @@ export default function AuthNavigator() {
         headerTitleStyle: { fontWeight: 'bold' },
       }}
     >
-      <Stack.Screen 
-        name="Login" 
-        component={LoginScreen} 
-        options={{ title: 'Welcome to Church' }}
-      />
-      <Stack.Screen 
-        name="SignUp" 
-        component={SignUpScreen} 
+      <Stack.Screen
+        name="Login"
+        component={LoginScreen}
         options={{ headerShown: false }}
       />
-      <Stack.Screen 
-        name="RegistrationSuccess" 
-        component={RegistrationSuccessScreen} 
+      <Stack.Screen
+        name="SignUp"
+        component={SignUpScreen}
         options={{ headerShown: false }}
       />
-      <Stack.Screen 
-        name="VerifyOtp" 
-        component={VerifyOtpScreen} 
+      <Stack.Screen
+        name="RegistrationSuccess"
+        component={RegistrationSuccessScreen}
+        options={{ headerShown: false }}
+      />
+      <Stack.Screen
+        name="VerifyOtp"
+        component={VerifyOtpScreen}
         options={{ title: 'Verification' }}
+      />
+      <Stack.Screen
+        name="ChurchSelection"
+        component={ChurchSelectionScreen}
+        options={{ headerShown: false }}
+      />
+      <Stack.Screen
+        name="CreateChurch"
+        component={CreateChurchScreen}
+        options={{ headerShown: false }}
+      />
+      <Stack.Screen
+        name="JoinSuccess"
+        component={JoinSuccessScreen}
+        options={{ headerShown: false, gestureEnabled: false }}
       />
     </Stack.Navigator>
   );

@@ -438,13 +438,13 @@ function Navigation() {
 
 export default function RootNavigator() {
   return (
-    <ThemeProvider>
-      <AuthProvider>
-        <ChurchProvider>
+    <AuthProvider>
+      <ChurchProvider>
+        <ThemeProvider>
           <Navigation />
-        </ChurchProvider>
-      </AuthProvider>
-    </ThemeProvider>
+        </ThemeProvider>
+      </ChurchProvider>
+    </AuthProvider>
   );
 }
 
