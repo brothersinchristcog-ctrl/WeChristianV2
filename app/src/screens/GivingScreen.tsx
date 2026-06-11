@@ -22,6 +22,7 @@ import {
 } from 'lucide-react-native';
 import { useAuth } from '../context/AuthContext';
 import { useTheme } from '../context/ThemeContext';
+import { useChurch } from '../context/ChurchContext';
 import FirestoreService, { AppMember } from '../services/FirestoreService';
 
 const { width } = Dimensions.get('window');
@@ -40,10 +41,17 @@ const PRESETS = [100, 500, 1000, 5000];
 export default function GivingScreen({ navigation }: any) {
   const { user } = useAuth();
   const { isDark, toggleTheme } = useTheme();
+  const { activeChurch } = useChurch();
   const [member, setMember] = useState<AppMember | null>(null);
   const [activeCat, setActiveCat] = useState('Tithe');
   const [amount, setAmount] = useState('500');
   const [loading, setLoading] = useState(false);
+
+  // Pull giving details from the active church; fall back to defaults
+  const giving = activeChurch?.givingDetails;
+  const upiId = giving?.upiId || '8000504070@ybl';
+  const phonepeNum = giving?.phonepeNumber || '8000504070';
+  const payeeName = activeChurch?.name || 'Church of God';
 
   useEffect(() => {
     const fetchMember = async () => {
@@ -71,11 +79,10 @@ export default function GivingScreen({ navigation }: any) {
         donationType: activeCat,
         contactId: member?.id || '',
         accountId: member?.accountId || '',
-        phone: user?.phoneNumber || ''
+        phone: user?.phoneNumber || '',
+        churchId: activeChurch?.id || ''
       });
-      const vpa = '8000504070@ybl';
-      const payee = 'Church of God';
-      const upiUrl = `upi://pay?pa=${vpa}&pn=${encodeURIComponent(payee)}&am=${numAmt}&cu=INR`;
+      const upiUrl = `upi://pay?pa=${upiId}&pn=${encodeURIComponent(payeeName)}&am=${numAmt}&cu=INR`;
 
       const canOpen = await Linking.canOpenURL(upiUrl);
       if (canOpen) {
@@ -192,11 +199,11 @@ export default function GivingScreen({ navigation }: any) {
             <View style={styles.upiDetailRow}>
               <View>
                 <Text style={styles.upiLabel}>PHONEPE NUMBER</Text>
-                <Text style={[styles.upiValue, { color: isDark ? '#fff' : '#1e293b' }]}>8000504070</Text>
+                <Text style={[styles.upiValue, { color: isDark ? '#fff' : '#1e293b' }]}>{phonepeNum}</Text>
               </View>
               <TouchableOpacity 
                 style={[styles.copyBtn, { backgroundColor: isDark ? '#334155' : '#eff6ff' }]} 
-                onPress={() => handleCopy('8000504070', 'PhonePe Number')}
+                onPress={() => handleCopy(phonepeNum, 'PhonePe Number')}
               >
                 <Share2 size={14} color={isDark ? '#fcd34d' : '#1a2d5a'} />
                 <Text style={[styles.copyBtnTxt, { color: isDark ? '#fcd34d' : '#1a2d5a' }]}>Copy/Share</Text>
@@ -208,11 +215,11 @@ export default function GivingScreen({ navigation }: any) {
             <View style={styles.upiDetailRow}>
               <View>
                 <Text style={styles.upiLabel}>UPI ID</Text>
-                <Text style={[styles.upiValue, { color: isDark ? '#fff' : '#1e293b' }]}>8000504070@ybl</Text>
+                <Text style={[styles.upiValue, { color: isDark ? '#fff' : '#1e293b' }]}>{upiId}</Text>
               </View>
               <TouchableOpacity 
                 style={[styles.copyBtn, { backgroundColor: isDark ? '#334155' : '#eff6ff' }]} 
-                onPress={() => handleCopy('8000504070@ybl', 'UPI ID')}
+                onPress={() => handleCopy(upiId, 'UPI ID')}
               >
                 <Share2 size={14} color={isDark ? '#fcd34d' : '#1a2d5a'} />
                 <Text style={[styles.copyBtnTxt, { color: isDark ? '#fcd34d' : '#1a2d5a' }]}>Copy/Share</Text>

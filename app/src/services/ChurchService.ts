@@ -29,6 +29,16 @@ export interface ChurchDetails {
     instagram?: string;
     website?: string;
   };
+  givingDetails?: {
+    upiId?: string;
+    phonepeNumber?: string;
+    accountName?: string;
+    bankName?: string;
+    accountNumber?: string;
+    ifscCode?: string;
+  };
+  subscriptionTier?: 'free' | 'standard' | 'premium';
+  memberCount?: number;
 }
 
 class ChurchService {

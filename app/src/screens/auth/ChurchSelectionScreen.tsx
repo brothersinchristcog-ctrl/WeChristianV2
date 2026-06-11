@@ -18,6 +18,7 @@ import { AuthStackParamList } from '../../navigation/AuthNavigator';
 import { useChurch } from '../../context/ChurchContext';
 import { Church, Search, ArrowRight, Plus } from 'lucide-react-native';
 import ChurchService, { ChurchDetails } from '../../services/ChurchService';
+import { SubscriptionGuard } from '../../services/SubscriptionGuard';
 
 type Props = {
   navigation: NativeStackNavigationProp<AuthStackParamList, 'ChurchSelection'>;
@@ -42,7 +43,15 @@ export default function ChurchSelectionScreen({ navigation }: Props) {
     try {
       const church = await ChurchService.getChurchBySubdomain(trimmed.toLowerCase());
       if (church) {
+        // Enforce subscription tier limit
+        const guard = new SubscriptionGuard(church);
+        const check = guard.canAddMember();
+        if (!check.allowed) {
+          Alert.alert('Church Full', check.message);
+          return;
+        }
         await setChurchId(church.id);
+        await SubscriptionGuard.incrementMemberCount(church.id);
         navigation.replace('JoinSuccess', { churchName: church.name });
       } else {
         Alert.alert('Not Found', 'No church found with that code. Please check and try again.');
@@ -73,7 +82,15 @@ export default function ChurchSelectionScreen({ navigation }: Props) {
   const handleSelectChurch = async (church: ChurchDetails) => {
     setLoading(true);
     try {
+      // Enforce subscription tier limit
+      const guard = new SubscriptionGuard(church);
+      const check = guard.canAddMember();
+      if (!check.allowed) {
+        Alert.alert('Church Full', check.message);
+        return;
+      }
       await setChurchId(church.id);
+      await SubscriptionGuard.incrementMemberCount(church.id);
       navigation.replace('JoinSuccess', { churchName: church.name });
     } catch (e) {
       Alert.alert('Error', 'Could not join church. Please try again.');
