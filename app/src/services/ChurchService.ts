@@ -38,7 +38,7 @@ class ChurchService {
   async getChurchDetails(churchId: string): Promise<ChurchDetails | null> {
     try {
       const docSnap = await firestore().collection('churches').doc(churchId).get();
-      if (docSnap.exists) {
+      if (docSnap.exists()) {
         return { id: docSnap.id, ...docSnap.data() } as ChurchDetails;
       }
       return null;

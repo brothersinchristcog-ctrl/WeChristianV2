@@ -134,7 +134,7 @@ class FirestoreService {
   async getMemberProfile(uid: string): Promise<AppMember | null> {
     try {
       const docSnap = await firestore().collection('member_profiles').doc(uid).get();
-      if (docSnap.exists) {
+      if (docSnap.exists()) {
         return { id: docSnap.id, ...docSnap.data() } as AppMember;
       }
       return null;
@@ -370,7 +370,7 @@ class FirestoreService {
   async getBibleProgress(memberId: string): Promise<any> {
     try {
       const doc = await firestore().collection('member_profiles').doc(memberId).collection('bible').doc('progress').get();
-      return doc.exists ? doc.data() : null;
+      return doc.exists() ? doc.data() : null;
     } catch (e) {
       return null;
     }
@@ -390,7 +390,7 @@ class FirestoreService {
   async getNotificationPrefs(userId: string) {
     try {
       const docSnap = await firestore().collection('member_profiles').doc(userId).get();
-      if (docSnap.exists) {
+      if (docSnap.exists()) {
         return docSnap.data()?.notifications || null;
       }
       return null;
