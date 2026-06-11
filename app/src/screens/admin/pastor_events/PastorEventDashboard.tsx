@@ -15,7 +15,7 @@ import Ionicons from '@expo/vector-icons/Ionicons';
 import DateTimePicker from '@react-native-community/datetimepicker';
 import { colors, spacing, radius, typography, shadow } from '../../../theme/Theme';
 import { PastorEvent } from '../../../types/event';
-import SalesforceService from '../../../services/SalesforceService';
+import FirestoreService from '../../../services/FirestoreService';
 import EventTypeBadge from '../../../components/EventTypeBadge';
 import DistanceBadge from '../../../components/DistanceBadge';
 import { getStartingLocation, saveStartingLocation, formatDuration } from '../../../utils/locationStore';
@@ -37,7 +37,7 @@ export const PastorEventDashboard = ({ navigation }: { navigation: any }) => {
   const fetchEvents = async () => {
     try {
       setLoading(true);
-      const sfEvents = await SalesforceService.getPastorEvents();
+      const sfEvents = await FirestoreService.getPastorEvents();
       if (sfEvents && sfEvents.length > 0) {
         // Categorize into today, upcoming, past
         const now = new Date();

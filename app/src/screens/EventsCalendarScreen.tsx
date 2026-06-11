@@ -13,7 +13,7 @@ import {
 import { useNavigation } from '@react-navigation/native';
 import { MapPin, Clock, ChevronRight, Calendar as CalendarIcon, ChevronLeft } from 'lucide-react-native';
 import Theme from '../theme/Theme';
-import SalesforceService, { ScheduleEvent } from '../services/SalesforceService';
+import FirestoreService, { ScheduleEvent } from '../services/FirestoreService';
 
 const { width } = Dimensions.get('window');
 
@@ -45,7 +45,7 @@ export default function EventsCalendarScreen() {
 
   const fetchEvents = async () => {
     try {
-      const sfEvents = await SalesforceService.getUpcomingEvents(15);
+      const sfEvents = await FirestoreService.getUpcomingEvents(15);
       setEvents(sfEvents);
     } catch (error) {
       console.error('Error fetching events:', error);

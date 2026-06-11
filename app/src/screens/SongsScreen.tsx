@@ -28,7 +28,7 @@ import {
   X
 } from 'lucide-react-native';
 import AsyncStorage from '@react-native-async-storage/async-storage';
-import SalesforceService, { WorshipSong } from '../services/SalesforceService';
+import FirestoreService, { WorshipSong } from '../services/FirestoreService';
 import { useTheme } from '../context/ThemeContext';
 
 const { width, height } = Dimensions.get('window');
@@ -76,7 +76,7 @@ export default function SongsScreen({ navigation }: any) {
   // ── Load songs ────────────────────────────────────
   const fetchSongs = async () => {
     try {
-      const data = await SalesforceService.getWorshipSongs();
+      const data = await FirestoreService.getWorshipSongs();
       setSongs(data);
     } catch (error) {
       console.error('Error fetching songs:', error);

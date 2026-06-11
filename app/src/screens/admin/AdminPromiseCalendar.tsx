@@ -13,7 +13,7 @@ import {
 } from 'react-native';
 import { AdminTabContext } from '../../context/AdminTabContext';
 
-import SalesforceService from '../../services/SalesforceService';
+import FirestoreService from '../../services/FirestoreService';
 
 const { width } = Dimensions.get('window');
 
@@ -35,7 +35,7 @@ export default function AdminPromiseCalendar() {
     setLoading(true);
     try {
       const now = new Date();
-      const data = await SalesforceService.getCalendarData(now.getFullYear(), now.getMonth() + 1);
+      const data = await FirestoreService.getCalendarData(now.getFullYear(), now.getMonth() + 1);
       setPromises(data);
     } catch (err) {
       console.error(err);
@@ -107,7 +107,7 @@ export default function AdminPromiseCalendar() {
             id: existingRecord?.id
           };
           
-          await SalesforceService.createDailyPromise(finalData);
+          await FirestoreService.createDailyPromise(finalData);
           count++;
           setImportProgress(count);
         }

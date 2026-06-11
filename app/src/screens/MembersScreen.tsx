@@ -29,7 +29,7 @@ import {
 import DateTimePickerModal from 'react-native-modal-datetime-picker';
 import { useAuth } from '../context/AuthContext';
 import { useTheme } from '../context/ThemeContext';
-import SalesforceService from '../services/SalesforceService';
+import FirestoreService from '../services/FirestoreService';
 
 const { width } = Dimensions.get('window');
 
@@ -71,7 +71,7 @@ export default function MembersScreen({ navigation }: any) {
       return;
     }
     try {
-      const contacts = await SalesforceService.getRelatedContacts(member.accountId);
+      const contacts = await FirestoreService.getRelatedContacts(member.accountId);
       setRelatedContacts(contacts);
     } catch (err) {
       console.error('Error fetching household members:', err);
@@ -96,7 +96,7 @@ export default function MembersScreen({ navigation }: any) {
     
     setSubmitting(true);
     try {
-      await SalesforceService.addFamilyMember(member!.accountId!, newMember);
+      await FirestoreService.addFamilyMember(member!.accountId!, newMember);
       setShowSuccess(true);
       setShowAddModal(false);
       setNewMember({

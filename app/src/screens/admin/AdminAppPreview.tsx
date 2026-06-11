@@ -25,7 +25,7 @@ import {
 } from 'lucide-react-native';
 import { AdminTabContext } from '../../context/AdminTabContext';
 
-import SalesforceService, { DailyPromise } from '../../services/SalesforceService';
+import FirestoreService, { DailyPromise } from '../../services/FirestoreService';
 
 const { width } = Dimensions.get('window');
 
@@ -46,7 +46,7 @@ export default function AdminAppPreview() {
       
       // 1. Fetch Latest Promise (not just today)
       const promiseSoql = `SELECT Id, Promises__c, Promise_text_telugu__c, Date__c, Devotional_Note__c, Pastor_Name__c, YouTube_ID__c, Name, Verse_Reference_En__c, Verse_Reference_Te__c FROM Daily_Promises__c WHERE Status__c = 'Published' ORDER BY Date__c DESC LIMIT 1`;
-      const promiseResult = await SalesforceService.query(promiseSoql).catch(() => null);
+      const promiseResult = await FirestoreService.query(promiseSoql).catch(() => null);
       
       if (promiseResult && promiseResult.totalSize > 0) {
         const rec = promiseResult.records[0];
@@ -57,7 +57,7 @@ export default function AdminAppPreview() {
           date: rec.Date__c,
           devotionalNote: rec.Devotional_Note__c,
           pastor: rec.Pastor_Name__c,
-          youtubeId: SalesforceService.extractYoutubeId(rec.YouTube_ID__c),
+          youtubeId: FirestoreService.extractYoutubeId(rec.YouTube_ID__c),
           verseReference: rec.Name,
           verseReferenceEn: rec.Verse_Reference_En__c,
           verseReferenceTe: rec.Verse_Reference_Te__c
@@ -65,7 +65,7 @@ export default function AdminAppPreview() {
       }
 
       // 2. Fetch Latest Sermons
-      const s = await SalesforceService.getSermons(5);
+      const s = await FirestoreService.getSermons(5);
       setSermons(s);
       
       console.log(`✅ [AdminAppPreview] Loaded ${s.length} sermons and latest promise.`);

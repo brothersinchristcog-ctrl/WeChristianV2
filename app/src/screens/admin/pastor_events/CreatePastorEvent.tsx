@@ -15,7 +15,7 @@ import {
 import Ionicons from '@expo/vector-icons/Ionicons';
 import DateTimePicker from '@react-native-community/datetimepicker';
 import { colors, spacing, radius, typography, shadow } from '../../../theme/Theme';
-import SalesforceService from '../../../services/SalesforceService';
+import FirestoreService from '../../../services/FirestoreService';
 import { useAuth } from '../../../context/AuthContext';
 import { CustomAlert, AlertButton } from '../../../components/CustomAlert';
 
@@ -104,7 +104,7 @@ export const CreatePastorEvent = ({ route, navigation }: { route: any; navigatio
     if (!member?.id) {
       const loadFallbackContact = async () => {
         try {
-          const admins = await SalesforceService.getAdminMembers();
+          const admins = await FirestoreService.getAdminMembers();
           if (admins && admins.length > 0) {
             setFallbackContactId(admins[0].Id);
           }
@@ -179,7 +179,7 @@ export const CreatePastorEvent = ({ route, navigation }: { route: any; navigatio
       const executeSave = async () => {
         try {
           if (editEvent) {
-            await SalesforceService.updatePastorEvent(editEvent.id, payload);
+            await FirestoreService.updatePastorEvent(editEvent.id, payload);
             setAlertConfig({
               visible: true,
               title: 'Success',
@@ -188,7 +188,7 @@ export const CreatePastorEvent = ({ route, navigation }: { route: any; navigatio
               buttons: [{ text: 'OK', onPress: () => { closeAlert(); navigation.goBack(); } }]
             });
           } else {
-            await SalesforceService.createPastorEvent(payload);
+            await FirestoreService.createPastorEvent(payload);
             setAlertConfig({
               visible: true,
               title: 'Success',
@@ -210,7 +210,7 @@ export const CreatePastorEvent = ({ route, navigation }: { route: any; navigatio
       try {
         const GOOGLE_KEY = process.env.EXPO_PUBLIC_GOOGLE_MAPS_KEY || '';
         if (GOOGLE_KEY) {
-          const existingEvents = await SalesforceService.getPastorEvents();
+          const existingEvents = await FirestoreService.getPastorEvents();
           
           // Helper to parse the 12-hour AM/PM string into a comparable Date
           const parseTime = (timeStr: string, dateObj: Date) => {

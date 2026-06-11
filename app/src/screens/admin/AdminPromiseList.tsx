@@ -13,7 +13,7 @@ import {
 import { BookOpen, Languages, Play, AlertCircle, Plus } from 'lucide-react-native';
 import { AdminTabContext } from '../../context/AdminTabContext';
 
-import SalesforceService, { DailyPromise } from '../../services/SalesforceService';
+import FirestoreService, { DailyPromise } from '../../services/FirestoreService';
 
 const { width } = Dimensions.get('window');
 
@@ -43,7 +43,7 @@ export default function AdminPromiseList() {
   const loadPromises = async () => {
     setLoading(true);
     try {
-      const data = await SalesforceService.getAdminPromises();
+      const data = await FirestoreService.getAdminPromises();
       setPromises(data);
       
       const now = new Date();

@@ -42,7 +42,7 @@ import {
 } from 'lucide-react-native';
 import { AdminTabContext } from '../../context/AdminTabContext';
 
-import SalesforceService from '../../services/SalesforceService';
+import FirestoreService from '../../services/FirestoreService';
 
 const { width } = Dimensions.get('window');
 
@@ -164,7 +164,7 @@ export default function AdminSermonEditor() {
         scripture: form.ref,
         categories: selectedCategories.join(';')
       };
-      await SalesforceService.createSermon(payload);
+      await FirestoreService.createSermon(payload);
       setShowSuccess(true);
     } catch (err: any) {
       setErrorMsg(err.message || 'Failed to save to Salesforce. Please check your connection.');

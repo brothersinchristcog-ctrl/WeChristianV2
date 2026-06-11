@@ -13,7 +13,7 @@ import {
 } from 'react-native';
 import Ionicons from '@expo/vector-icons/Ionicons';
 import { colors, spacing, radius, typography, shadow } from '../../../theme/Theme';
-import SalesforceService from '../../../services/SalesforceService';
+import FirestoreService from '../../../services/FirestoreService';
 import { CustomAlert, AlertButton } from '../../../components/CustomAlert';
 import { PastorEvent } from '../../../types/event';
 import { openInMaps } from '../../../utils/maps';
@@ -164,7 +164,7 @@ export const PastorEventDetail = ({ route, navigation }: { route: any; navigatio
             closeAlert();
             try {
               setDeleting(true);
-              await SalesforceService.deletePastorEvent(event.id);
+              await FirestoreService.deletePastorEvent(event.id);
               
               // Slight delay so the previous modal can unmount fully before showing success
               setTimeout(() => {

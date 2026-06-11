@@ -26,7 +26,7 @@ import {
 } from 'lucide-react-native';
 import { AdminTabContext } from '../../context/AdminTabContext';
 
-import SalesforceService from '../../services/SalesforceService';
+import FirestoreService from '../../services/FirestoreService';
 
 const { width } = Dimensions.get('window');
 
@@ -43,7 +43,7 @@ export default function AdminDashboard() {
   useEffect(() => {
     const loadData = async () => {
       try {
-        const statData = await SalesforceService.getDashboardStats();
+        const statData = await FirestoreService.getDashboardStats();
         setStats({
           members: statData.members.toString(),
           promises: statData.promises.toString(),

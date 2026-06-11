@@ -36,7 +36,7 @@ import {
 } from 'lucide-react-native';
 import { AdminTabContext } from '../../context/AdminTabContext';
 
-import SalesforceService from '../../services/SalesforceService';
+import FirestoreService from '../../services/FirestoreService';
 
 const { width, height } = Dimensions.get('window');
 
@@ -120,7 +120,7 @@ export default function AdminEventEditor() {
   useEffect(() => {
     const discoverMetadata = async () => {
       try {
-        const meta = await SalesforceService.getEventMetadata();
+        const meta = await FirestoreService.getEventMetadata();
         if (meta) {
           console.log('📖 [AdminEventEditor] Metadata Loaded:', JSON.stringify(meta, null, 2));
           setMetadata(meta);
@@ -354,7 +354,7 @@ export default function AdminEventEditor() {
     console.log('📤 [AdminEventEditor] Saving Payload:', JSON.stringify(payload, null, 2));
 
     try {
-      await SalesforceService.createEvent(payload);
+      await FirestoreService.createEvent(payload);
       setShowSuccess(true);
     } catch (err) {
       console.error('❌ [AdminEventEditor] Save Failed:', err);

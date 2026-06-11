@@ -18,7 +18,7 @@ import { SafeAreaView } from 'react-native-safe-area-context';
 import { Music, Save, ChevronDown, CheckCircle, Pencil, X, List, Eye, Square, Trash2, Star } from 'lucide-react-native';
 import AsyncStorage from '@react-native-async-storage/async-storage';
 import { AdminTabContext } from '../../context/AdminTabContext';
-import SalesforceService, { WorshipSong } from '../../services/SalesforceService';
+import FirestoreService, { WorshipSong } from '../../services/FirestoreService';
 import {
   getFirestore,
   collection,
@@ -98,7 +98,7 @@ export default function AdminSongEditor() {
   const fetchPostedSongs = async () => {
     setLoadingList(true);
     try {
-      const data = await SalesforceService.getWorshipSongs();
+      const data = await FirestoreService.getWorshipSongs();
       setPostedSongs(data);
     } catch (err) {
       console.error(err);
@@ -114,7 +114,7 @@ export default function AdminSongEditor() {
 
   const fetchMemberSongs = async () => {
     try {
-      const data = await SalesforceService.getWorshipSongs();
+      const data = await FirestoreService.getWorshipSongs();
       setMemberSongs(data);
       const stored = await AsyncStorage.getItem(SONGBOOK_KEY);
       if (stored) setSavedIds(JSON.parse(stored));
@@ -136,7 +136,7 @@ export default function AdminSongEditor() {
     setSubmitting(true);
     try {
       const primaryCategory = categories.join(';') || 'Other';
-      const receipt = await SalesforceService.createWorshipSong({
+      const receipt = await FirestoreService.createWorshipSong({
         titleEn: titleEn.trim(),
         titleTe: titleTe.trim(),
         artist: artist.trim(),
@@ -200,7 +200,7 @@ export default function AdminSongEditor() {
     setSavingEdit(true);
     try {
       const primaryEditCategory = editCategories.join(';') || 'Other';
-      await SalesforceService.updateWorshipSong(editingSong.id, {
+      await FirestoreService.updateWorshipSong(editingSong.id, {
         titleEn: editTitle.trim(),
         titleTe: editTitleTe.trim(),
         artist: editArtist.trim(),
@@ -233,7 +233,7 @@ export default function AdminSongEditor() {
           style: 'destructive',
           onPress: async () => {
             try {
-              await SalesforceService.deleteWorshipSong(id);
+              await FirestoreService.deleteWorshipSong(id);
               fetchPostedSongs();
               Alert.alert('Deleted', 'Song deleted successfully.');
             } catch (e: any) {
@@ -258,7 +258,7 @@ export default function AdminSongEditor() {
         // Add Theme Songs to existing categories
         newCats = [...currentCats, 'Theme Songs'];
       }
-      await SalesforceService.updateWorshipSong(song.id, { category: newCats.join(';') });
+      await FirestoreService.updateWorshipSong(song.id, { category: newCats.join(';') });
       fetchPostedSongs();
     } catch (e: any) {
       Alert.alert('Error', 'Failed to toggle theme status.');

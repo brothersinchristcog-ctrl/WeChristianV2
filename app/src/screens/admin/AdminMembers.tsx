@@ -12,7 +12,7 @@ import {
   RefreshControl
 } from 'react-native';
 import { Users, Phone, Mail, ChevronDown, ChevronUp, Clock, UserCheck } from 'lucide-react-native';
-import SalesforceService from '../../services/SalesforceService';
+import FirestoreService from '../../services/FirestoreService';
 
 const { width } = Dimensions.get('window');
 
@@ -33,7 +33,7 @@ export default function AdminMembers() {
     }
     setError(null);
     try {
-      const data = await SalesforceService.getAdminMembers();
+      const data = await FirestoreService.getAdminMembers();
       setMembers(data);
     } catch (err: any) {
       console.error('Error fetching members:', err);

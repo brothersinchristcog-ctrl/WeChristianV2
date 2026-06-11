@@ -49,7 +49,7 @@ import firestore from '@react-native-firebase/firestore';
 import { useNavigation } from '@react-navigation/native';
 import { useAuth } from '../context/AuthContext';
 import Theme from '../theme/Theme';
-import SalesforceService, { DailyPromise, ScheduleEvent, SalesforceMember, Sermon } from '../services/SalesforceService';
+import FirestoreService, { DailyPromise, ScheduleEvent, AppMember, Sermon } from '../services/FirestoreService';
 import Svg, { Path, Circle, Rect, Polygon } from 'react-native-svg';
 
 const YoutubeIcon = ({ size = 26, color = '#fff' }: { size?: number; color?: string }) => (
@@ -210,7 +210,7 @@ export default function HomeScreen() {
   const navigation = useNavigation<any>();
   const { user, signOut } = useAuth();
   const { mode, isDark, toggleTheme, colors } = useTheme();
-  const [member, setMember] = useState<SalesforceMember | null>(null);
+  const [member, setMember] = useState<AppMember | null>(null);
   const [promise, setPromise] = useState<DailyPromise | null>(null);
   const [todayEvents, setTodayEvents] = useState<ScheduleEvent[]>([]);
   const [events, setEvents] = useState<ScheduleEvent[]>([]);
@@ -229,21 +229,21 @@ export default function HomeScreen() {
       // Run ALL Salesforce calls in parallel for maximum speed
       const [memberResult, promiseResult, todayEventsResult, upcomingEventsResult, sermonsResult, prayersResult] = await Promise.allSettled([
         // 1. Fetch Member Details
-        user?.phoneNumber ? SalesforceService.checkContactExists(user.phoneNumber) : Promise.resolve(null),
+        user?.phoneNumber ? FirestoreService.checkContactExists(user.phoneNumber) : Promise.resolve(null),
         // 2. Fetch Daily Promise
-        SalesforceService.getDailyPromise(),
+        FirestoreService.getDailyPromise(),
         // 3. Fetch Today's Events
-        SalesforceService.getTodayEvents(),
+        FirestoreService.getTodayEvents(),
         // 4. Fetch Upcoming Events
-        SalesforceService.getUpcomingEvents(3),
+        FirestoreService.getUpcomingEvents(3),
         // 5. Fetch Latest Sermon
-        SalesforceService.getSermons(1),
+        FirestoreService.getSermons(1),
         // 6. Fetch Latest Prayer
         (async () => {
           if (!user?.phoneNumber) return [];
-          const res = await SalesforceService.checkContactExists(user.phoneNumber);
+          const res = await FirestoreService.checkContactExists(user.phoneNumber);
           if (res?.member?.id) {
-            return await SalesforceService.getPrayerRequests({ contactId: res.member.id });
+            return await FirestoreService.getPrayerRequests({ contactId: res.member.id });
           }
           return [];
         })()
@@ -252,7 +252,7 @@ export default function HomeScreen() {
       // Process results safely
       if (memberResult.status === 'fulfilled' && memberResult.value?.exists && memberResult.value.member) {
         setMember(memberResult.value.member);
-        SalesforceService.updateLastAppOpened(memberResult.value.member.id);
+        FirestoreService.updateLastAppOpened(memberResult.value.member.id);
       }
       if (promiseResult.status === 'fulfilled' && promiseResult.value) {
         const prom = promiseResult.value;

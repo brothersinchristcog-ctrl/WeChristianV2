@@ -24,21 +24,21 @@ import {
   ChevronRight,
   Heart
 } from 'lucide-react-native';
-import SalesforceService, { SalesforceVideo } from '../services/SalesforceService';
+import FirestoreService, { FirestoreVideo } from '../services/FirestoreService';
 
 const { width } = Dimensions.get('window');
 
 export default function SermonVideoScreen({ navigation, route }: any) {
-  const [videos, setVideos] = useState<SalesforceVideo[]>([]);
+  const [videos, setVideos] = useState<FirestoreVideo[]>([]);
   const [loading, setLoading] = useState(true);
   const [playing, setPlaying] = useState(false);
-  const [activeVideo, setActiveVideo] = useState<SalesforceVideo | null>(null);
+  const [activeVideo, setActiveVideo] = useState<FirestoreVideo | null>(null);
 
   // Initial load from params or fetch
   useEffect(() => {
     const init = async () => {
-      const promiseData = await SalesforceService.getSermons(50);
-      const data: SalesforceVideo[] = promiseData
+      const promiseData = await FirestoreService.getSermons(50);
+      const data: FirestoreVideo[] = promiseData
         .filter(p => p.youtubeId && p.youtubeId !== 'mock')
         .map(p => ({
           id: p.id,

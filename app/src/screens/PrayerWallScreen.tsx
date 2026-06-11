@@ -23,7 +23,7 @@ import {
 } from 'lucide-react-native';
 import { useAuth } from '../context/AuthContext';
 import { useTheme } from '../context/ThemeContext';
-import SalesforceService, { SalesforceMember } from '../services/SalesforceService';
+import FirestoreService, { AppMember } from '../services/FirestoreService';
 import { PrayerRequest } from '../types/schema';
 
 interface PrayerFormProps {
@@ -110,7 +110,7 @@ const PrayerForm = ({
 export default function PrayerWallScreen({ navigation }: any) {
   const { user } = useAuth();
   const { isDark, toggleTheme, colors } = useTheme();
-  const [member, setMember] = useState<SalesforceMember | null>(null);
+  const [member, setMember] = useState<AppMember | null>(null);
   const [prayers, setPrayers] = useState<PrayerRequest[]>([]);
   const [loading, setLoading] = useState(true);
   const [refreshing, setRefreshing] = useState(false);
@@ -135,7 +135,7 @@ export default function PrayerWallScreen({ navigation }: any) {
   const fetchPrayers = async (contactId?: string, isRefreshing = false) => {
     if (!isRefreshing) setLoading(true);
     try {
-      const data = await SalesforceService.getPrayerRequests({ contactId });
+      const data = await FirestoreService.getPrayerRequests({ contactId });
       setPrayers(data);
     } catch (error) {
       console.error('Error fetching prayers:', error);
@@ -149,7 +149,7 @@ export default function PrayerWallScreen({ navigation }: any) {
     const init = async () => {
       let contactId = undefined;
       if (user?.phoneNumber) {
-        const result = await SalesforceService.checkContactExists(user.phoneNumber);
+        const result = await FirestoreService.checkContactExists(user.phoneNumber);
         if (result?.exists && result.member) {
           setMember(result.member);
           contactId = result.member.id;
@@ -173,7 +173,7 @@ export default function PrayerWallScreen({ navigation }: any) {
 
     setIsSubmitting(true);
     try {
-      await SalesforceService.submitPrayerRequest({
+      await FirestoreService.submitPrayerRequest({
         name: member?.name || user?.displayName || 'Faithful Member',
         phone: user?.phoneNumber || '',
         contactId: member?.id || null,
@@ -218,7 +218,7 @@ export default function PrayerWallScreen({ navigation }: any) {
     setSubmittingReplyId(caseId);
     try {
       const authorName = member?.name || user?.displayName || 'Member';
-      await SalesforceService.addPrayerComment(caseId, comment, authorName);
+      await FirestoreService.addPrayerComment(caseId, comment, authorName);
       setReplyInputs(prev => ({ ...prev, [caseId]: '' }));
       fetchPrayers(member?.id || undefined, true);
     } catch (err) {
@@ -239,7 +239,7 @@ export default function PrayerWallScreen({ navigation }: any) {
           style: 'destructive',
           onPress: async () => {
             try {
-              await SalesforceService.deletePrayerRequest(id);
+              await FirestoreService.deletePrayerRequest(id);
               fetchPrayers(member?.id || undefined, true);
             } catch (err) {
               Alert.alert('Error', 'Failed to delete request');

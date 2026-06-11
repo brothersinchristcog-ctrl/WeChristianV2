@@ -10,6 +10,7 @@ import AsyncStorage from '@react-native-async-storage/async-storage';
 import { Lock } from 'lucide-react-native';
 
 import { AuthProvider, useAuth } from '../context/AuthContext';
+import { ChurchProvider } from '../context/ChurchContext';
 import { ThemeProvider } from '../context/ThemeContext';
 import Theme from '../theme/Theme';
 import AdminNavigator from './AdminNavigator'; 
@@ -300,8 +301,8 @@ function Navigation() {
               console.log('🩹 [Self-Healing] Missing user profile details in Firestore. Fetching from Salesforce...');
               const phoneClean = user.phoneNumber || '';
               if (phoneClean) {
-                const SalesforceService = require('../services/SalesforceService').default;
-                const result = await SalesforceService.checkContactExists(phoneClean);
+                const FirestoreService = require('../services/FirestoreService').default;
+                const result = await FirestoreService.checkContactExists(phoneClean);
                 if (result && result.exists) {
                   await firestore().collection('users').doc(user.uid).set({
                     name: result.member?.name || '',
@@ -439,7 +440,9 @@ export default function RootNavigator() {
   return (
     <ThemeProvider>
       <AuthProvider>
-        <Navigation />
+        <ChurchProvider>
+          <Navigation />
+        </ChurchProvider>
       </AuthProvider>
     </ThemeProvider>
   );

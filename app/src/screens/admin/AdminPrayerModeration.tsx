@@ -32,7 +32,7 @@ import {
   MoreVertical,
   Megaphone
 } from 'lucide-react-native';
-import SalesforceService from '../../services/SalesforceService';
+import FirestoreService from '../../services/FirestoreService';
 import Theme from '../../theme/Theme';
 import { useAuth } from '../../context/AuthContext';
 
@@ -82,7 +82,7 @@ export default function AdminPrayerModeration() {
     }
     setSearchingMembers(true);
     try {
-      const results = await SalesforceService.searchMembers(query);
+      const results = await FirestoreService.searchMembers(query);
       setMemberSearchResults(results);
     } catch (error) {
       console.error('Member search error:', error);
@@ -122,7 +122,7 @@ export default function AdminPrayerModeration() {
   const fetchPrayers = useCallback(async (isRefreshing = false) => {
     if (!isRefreshing) setLoading(true);
     try {
-      const data = await SalesforceService.getPrayerRequests({ isAdmin: true });
+      const data = await FirestoreService.getPrayerRequests({ isAdmin: true });
       setPrayers(data);
     } catch (error) {
       console.error('Error fetching admin prayers:', error);
@@ -144,7 +144,7 @@ export default function AdminPrayerModeration() {
 
   const handleApprove = async (id: string) => {
     try {
-      await SalesforceService.markAsAnswered(id);
+      await FirestoreService.markAsAnswered(id);
       fetchPrayers(true);
       Alert.alert('Success', 'Prayer request status updated.');
     } catch (err) {
@@ -163,7 +163,7 @@ export default function AdminPrayerModeration() {
           style: 'destructive',
           onPress: async () => {
             try {
-              await SalesforceService.deletePrayerRequest(id);
+              await FirestoreService.deletePrayerRequest(id);
               fetchPrayers(true);
             } catch (err) {
               Alert.alert('Error', 'Failed to delete request');
@@ -182,7 +182,7 @@ export default function AdminPrayerModeration() {
 
     setSubmitting(true);
     try {
-      await SalesforceService.submitPrayerRequest({
+      await FirestoreService.submitPrayerRequest({
         name: selectedMember ? selectedMember.name : pastorRequest.postAs,
         phone: selectedMember ? selectedMember.phone : null,
         contactId: selectedMember ? selectedMember.id : null,

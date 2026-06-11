@@ -14,7 +14,7 @@ import { MapPin, Clock, Calendar, Trash2 } from 'lucide-react-native';
 import { AdminTabContext } from '../../context/AdminTabContext';
 import { Alert } from 'react-native';
 
-import SalesforceService from '../../services/SalesforceService';
+import FirestoreService from '../../services/FirestoreService';
 
 const { width } = Dimensions.get('window');
 
@@ -30,7 +30,7 @@ export default function AdminEventList() {
   const fetchEvents = async () => {
     setLoading(true);
     try {
-      const data = await SalesforceService.getEvents();
+      const data = await FirestoreService.getEvents();
       console.log('📊 [AdminEventList] Fetched Events:', JSON.stringify(data.slice(0, 2), null, 2));
       setEvents(data);
     } catch (err) {
@@ -94,7 +94,7 @@ export default function AdminEventList() {
           onPress: async () => {
             try {
               setLoading(true);
-              await SalesforceService.deleteEvent(id);
+              await FirestoreService.deleteEvent(id);
               await fetchEvents();
             } catch (err) {
               Alert.alert('Error', 'Failed to delete event');

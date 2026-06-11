@@ -30,7 +30,7 @@ import {
 } from 'lucide-react-native';
 import { useAuth } from '../context/AuthContext';
 import { useTheme } from '../context/ThemeContext';
-import SalesforceService, { SalesforceMember } from '../services/SalesforceService';
+import FirestoreService, { AppMember } from '../services/FirestoreService';
 import SecurityService from '../services/SecurityService';
 import * as ImagePicker from 'expo-image-picker';
 import { Lock } from 'lucide-react-native';
@@ -40,7 +40,7 @@ const { width } = Dimensions.get('window');
 export default function ProfileScreen({ navigation }: any) {
   const { user, signOut } = useAuth();
   const { isDark, toggleTheme, colors } = useTheme();
-  const [member, setMember] = useState<SalesforceMember | null>(null);
+  const [member, setMember] = useState<AppMember | null>(null);
   const [loading, setLoading] = useState(true);
   const [refreshing, setRefreshing] = useState(false);
   const [isEditModalVisible, setIsEditModalVisible] = useState(false);
@@ -69,7 +69,7 @@ export default function ProfileScreen({ navigation }: any) {
   const fetchProfileData = async () => {
     try {
       if (user?.phoneNumber) {
-        const contactCheck = await SalesforceService.checkContactExists(user.phoneNumber);
+        const contactCheck = await FirestoreService.checkContactExists(user.phoneNumber);
         if (contactCheck?.exists && contactCheck.member) {
           setMember(contactCheck.member);
           setEditForm({
@@ -94,7 +94,7 @@ export default function ProfileScreen({ navigation }: any) {
     if (!member) return;
     setUpdating(true);
     try {
-      await SalesforceService.updateMemberProfile(member.id, editForm);
+      await FirestoreService.updateMemberProfile(member.id, editForm);
       Alert.alert(
         'Profile Saved', 
         'Your personal details (Name, Email, and Address) have been updated directly in your church record in Salesforce.'

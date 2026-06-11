@@ -16,7 +16,7 @@ import auth from '@react-native-firebase/auth';
 import { NativeStackNavigationProp } from '@react-navigation/native-stack';
 import { AuthStackParamList } from '../../navigation/AuthNavigator';
 import Theme from '../../theme/Theme';
-import SalesforceService from '../../services/SalesforceService';
+import FirestoreService from '../../services/FirestoreService';
 import { useAuth } from '../../context/AuthContext';
 import { SafeAreaView } from 'react-native-safe-area-context';
 import { ChevronLeft, Phone, User, LogIn, ArrowRight } from 'lucide-react-native';
@@ -42,7 +42,7 @@ export default function LoginScreen({ navigation }: LoginScreenProps) {
       if (cleanNum.length === 10) {
         setVerifyingStatus('Checking membership...');
         try {
-          const result = await SalesforceService.checkContactExists(cleanNum);
+          const result = await FirestoreService.checkContactExists(cleanNum);
           if (result && result.exists) {
             setMemberName(result.member?.firstName || result.member?.name || '');
             setContactId(result.member?.id);

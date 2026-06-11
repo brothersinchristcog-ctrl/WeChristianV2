@@ -13,7 +13,7 @@ import {
   TextInput
 } from 'react-native';
 import { Gift, Heart, Send, Calendar, CheckCircle2, Search } from 'lucide-react-native';
-import SalesforceService from '../../services/SalesforceService';
+import FirestoreService from '../../services/FirestoreService';
 import Theme from '../../theme/Theme';
 
 export default function AdminCelebrations() {
@@ -48,7 +48,7 @@ export default function AdminCelebrations() {
     else setLoading(true);
 
     try {
-      const data = await SalesforceService.getAllCelebrations();
+      const data = await FirestoreService.getAllCelebrations();
       
       const parsed: any[] = [];
 
@@ -165,7 +165,7 @@ export default function AdminCelebrations() {
     
     setIsSending(true);
     try {
-      const success = await SalesforceService.sendPersonalGreeting(
+      const success = await FirestoreService.sendPersonalGreeting(
         selectedItem.contactId, 
         selectedItem.phone, 
         messageTitle, 

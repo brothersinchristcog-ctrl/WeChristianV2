@@ -32,7 +32,7 @@ import {
   AlertTriangle
 } from 'lucide-react-native';
 import Theme from '../../theme/Theme';
-import SalesforceService from '../../services/SalesforceService';
+import FirestoreService from '../../services/FirestoreService';
 import {
   getFirestore, 
   collection, 
@@ -228,7 +228,7 @@ export default function AdminNotificationBroadcast() {
       
       // Save to Salesforce Org
       try {
-        await SalesforceService.createNotificationBroadcast({
+        await FirestoreService.createNotificationBroadcast({
           title: manualBroadcast.title,
           message: manualBroadcast.message,
           type: 'Announcement',
@@ -309,7 +309,7 @@ export default function AdminNotificationBroadcast() {
 
       // Save to Salesforce Org
       try {
-        await SalesforceService.createNotificationBroadcast({
+        await FirestoreService.createNotificationBroadcast({
           title: `🚨 EMERGENCY MEETING: ${emergencyAlert.title}`,
           message: `⏰ TIME: ${fullTimeStr}\n📍 LOCATION: ${emergencyAlert.location}\n\n${emergencyAlert.message}`,
           type: 'Emergency',
@@ -337,7 +337,7 @@ export default function AdminNotificationBroadcast() {
   const handleSimulateBirthdays = async () => {
     setSubmitting(true);
     try {
-      const bdays = await SalesforceService.getTodayBirthdays();
+      const bdays = await FirestoreService.getTodayBirthdays();
       if (bdays.length === 0) {
         Alert.alert(
           'Simulate Birthdays',
@@ -394,7 +394,7 @@ export default function AdminNotificationBroadcast() {
   const handleSimulateAnniversaries = async () => {
     setSubmitting(true);
     try {
-      const annivs = await SalesforceService.getTodayAnniversaries();
+      const annivs = await FirestoreService.getTodayAnniversaries();
       if (annivs.length === 0) {
         Alert.alert(
           'Simulate Anniversaries',

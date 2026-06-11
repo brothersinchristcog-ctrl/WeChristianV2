@@ -35,7 +35,7 @@ import * as FileSystem from 'expo-file-system/legacy';
 import { captureRef } from 'react-native-view-shot';
 import firestore from '@react-native-firebase/firestore';
 
-import SalesforceService from '../../services/SalesforceService';
+import FirestoreService from '../../services/FirestoreService';
 
 const { width } = Dimensions.get('window');
 
@@ -230,7 +230,7 @@ export default function AdminPromiseEditor() {
         imageUrl: form.imageUrl
       };
       
-      await SalesforceService.createDailyPromise(details);
+      await FirestoreService.createDailyPromise(details);
 
       setShowSuccess(true);
     } catch (err: any) {

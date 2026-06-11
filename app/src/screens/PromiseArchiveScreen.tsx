@@ -22,7 +22,7 @@ import {
   Calendar,
   ChevronRight
 } from 'lucide-react-native';
-import SalesforceService, { DailyPromise } from '../services/SalesforceService';
+import FirestoreService, { DailyPromise } from '../services/FirestoreService';
 
 const { width } = Dimensions.get('window');
 
@@ -40,7 +40,7 @@ export default function PromiseArchiveScreen({ navigation }: any) {
 
   const fetchPromises = async () => {
     try {
-      const data = await SalesforceService.getDailyPromisesArchive(30);
+      const data = await FirestoreService.getDailyPromisesArchive(30);
       setPromises(data);
       const today = new Date().toISOString().split('T')[0];
       if (data.length > 0 && data[0].date === today) {

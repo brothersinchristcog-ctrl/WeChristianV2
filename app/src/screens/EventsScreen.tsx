@@ -20,7 +20,7 @@ import {
   Calendar,
   Play
 } from 'lucide-react-native';
-import SalesforceService, { ScheduleEvent } from '../services/SalesforceService';
+import FirestoreService, { ScheduleEvent } from '../services/FirestoreService';
 import { useTheme } from '../context/ThemeContext';
 
 const { width } = Dimensions.get('window');
@@ -36,8 +36,8 @@ export default function EventsScreen({ navigation }: any) {
   const fetchEvents = async () => {
     try {
       const [upcoming, past] = await Promise.all([
-        SalesforceService.getUpcomingEvents(15),
-        SalesforceService.getPastEvents(5)
+        FirestoreService.getUpcomingEvents(15),
+        FirestoreService.getPastEvents(5)
       ]);
       console.log('📅 Mapped Upcoming Events:', JSON.stringify(upcoming, null, 2));
       console.log('📅 Mapped Past Events:', JSON.stringify(past, null, 2));

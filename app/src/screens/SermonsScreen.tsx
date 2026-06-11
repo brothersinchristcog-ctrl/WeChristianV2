@@ -24,7 +24,7 @@ import {
   Layers
 } from 'lucide-react-native';
 import { useTheme } from '../context/ThemeContext';
-import SalesforceService, { Sermon } from '../services/SalesforceService';
+import FirestoreService, { Sermon } from '../services/FirestoreService';
 
 const { width } = Dimensions.get('window');
 
@@ -67,7 +67,7 @@ export default function SermonsScreen({ navigation }: any) {
 
   const fetchSermons = async () => {
     try {
-      const data = await SalesforceService.getSermons(64);
+      const data = await FirestoreService.getSermons(64);
       setSermons(data);
     } catch (error) {
       console.error('Error fetching sermons:', error);

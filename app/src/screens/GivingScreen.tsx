@@ -22,7 +22,7 @@ import {
 } from 'lucide-react-native';
 import { useAuth } from '../context/AuthContext';
 import { useTheme } from '../context/ThemeContext';
-import SalesforceService, { SalesforceMember } from '../services/SalesforceService';
+import FirestoreService, { AppMember } from '../services/FirestoreService';
 
 const { width } = Dimensions.get('window');
 
@@ -40,7 +40,7 @@ const PRESETS = [100, 500, 1000, 5000];
 export default function GivingScreen({ navigation }: any) {
   const { user } = useAuth();
   const { isDark, toggleTheme } = useTheme();
-  const [member, setMember] = useState<SalesforceMember | null>(null);
+  const [member, setMember] = useState<AppMember | null>(null);
   const [activeCat, setActiveCat] = useState('Tithe');
   const [amount, setAmount] = useState('500');
   const [loading, setLoading] = useState(false);
@@ -48,7 +48,7 @@ export default function GivingScreen({ navigation }: any) {
   useEffect(() => {
     const fetchMember = async () => {
       if (user?.phoneNumber) {
-        const result = await SalesforceService.checkContactExists(user.phoneNumber);
+        const result = await FirestoreService.checkContactExists(user.phoneNumber);
         if (result?.exists && result.member) {
           setMember(result.member);
         }
@@ -66,7 +66,7 @@ export default function GivingScreen({ navigation }: any) {
 
     setLoading(true);
     try {
-      await SalesforceService.createDonation({
+      await FirestoreService.createDonation({
         amount: numAmt,
         donationType: activeCat,
         contactId: member?.id || '',

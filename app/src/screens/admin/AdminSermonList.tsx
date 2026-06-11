@@ -25,7 +25,7 @@ import {
 } from 'lucide-react-native';
 import { AdminTabContext } from '../../context/AdminTabContext';
 
-import SalesforceService, { Sermon } from '../../services/SalesforceService';
+import FirestoreService, { Sermon } from '../../services/FirestoreService';
 import { Linking } from 'react-native';
 
 const { width } = Dimensions.get('window');
@@ -43,7 +43,7 @@ export default function AdminSermonList() {
   const fetchSermons = async () => {
     setLoading(true);
     try {
-      const data = await SalesforceService.getSermons(50);
+      const data = await FirestoreService.getSermons(50);
       setSermons(data);
     } catch (err) {
       console.error(err);
@@ -84,7 +84,7 @@ export default function AdminSermonList() {
             if (!sermon.id) return;
             try {
               setLoading(true);
-              await SalesforceService.deleteSermon(sermon.id);
+              await FirestoreService.deleteSermon(sermon.id);
               fetchSermons(); // Refresh list after delete
             } catch (err: any) {
               Alert.alert("Delete Failed", err.message || "Could not delete sermon.");

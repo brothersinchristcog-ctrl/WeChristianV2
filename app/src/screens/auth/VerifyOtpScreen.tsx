@@ -17,7 +17,7 @@ import { NativeStackScreenProps } from '@react-navigation/native-stack';
 import auth from '@react-native-firebase/auth';
 import { AuthStackParamList } from '../../navigation/AuthNavigator';
 import Theme from '../../theme/Theme';
-import SalesforceService from '../../services/SalesforceService';
+import FirestoreService from '../../services/FirestoreService';
 import { ChevronLeft, ShieldCheck, RefreshCw } from 'lucide-react-native';
 
 type VerifyOtpScreenProps = NativeStackScreenProps<AuthStackParamList, 'VerifyOtp'>;
@@ -43,7 +43,7 @@ export default function VerifyOtpScreen({ route, navigation }: VerifyOtpScreenPr
       if (result?.user && contactId) {
         setStatus('Linking church profile...');
         try {
-          await SalesforceService.syncMember(contactId, result.user.uid);
+          await FirestoreService.syncMember(contactId, result.user.uid);
           
           // Save profile details to Firestore so Push Notifications can match them by name
           const firestore = require('@react-native-firebase/firestore').default;

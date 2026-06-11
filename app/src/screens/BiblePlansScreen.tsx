@@ -16,7 +16,7 @@ import AsyncStorage from '@react-native-async-storage/async-storage';
 import { ChevronLeft, Calendar, Award, CheckCircle, Circle, BookOpen, Clock, Heart } from 'lucide-react-native';
 import { useTheme } from '../context/ThemeContext';
 import { useAuth } from '../context/AuthContext';
-import SalesforceService from '../services/SalesforceService';
+import FirestoreService from '../services/FirestoreService';
 
 const { width } = Dimensions.get('window');
 
@@ -152,7 +152,7 @@ export default function BiblePlansScreen({ navigation }: any) {
       
       // 1. Try from Salesforce Custom Object if member is logged in
       if (member && member.id) {
-        const cloudProgress = await SalesforceService.getBibleProgress(member.id);
+        const cloudProgress = await FirestoreService.getBibleProgress(member.id);
         if (Object.keys(cloudProgress).length > 0) {
           setProgress(cloudProgress);
           await AsyncStorage.setItem('@BiblePlansProgress', JSON.stringify(cloudProgress));
@@ -206,7 +206,7 @@ export default function BiblePlansScreen({ navigation }: any) {
     }
     setIsSaving(true);
     try {
-      await SalesforceService.saveBibleProgress(member.id, progress);
+      await FirestoreService.saveBibleProgress(member.id, progress);
       setShowSuccess(true);
     } catch (e) {
       console.error('Error saving to cloud:', e);

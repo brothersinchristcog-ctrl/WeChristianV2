@@ -2,30 +2,28 @@ import React, { createContext, useContext, useState, useEffect } from 'react';
 import auth, { FirebaseAuthTypes } from '@react-native-firebase/auth';
 import AsyncStorage from '@react-native-async-storage/async-storage';
 
-import { SalesforceMember } from '../services/SalesforceService';
+import FirestoreService, { AppMember } from '../services/FirestoreService';
 
 interface AuthContextType {
   user: FirebaseAuthTypes.User | null;
-  member: SalesforceMember | null;
+  member: AppMember | null;
   loading: boolean;
   signInAnonymously: () => Promise<void>;
   signOut: () => Promise<void>;
-  setMember: (member: SalesforceMember | null) => void;
+  setMember: (member: AppMember | null) => void;
   viewMode: 'admin' | 'member';
   setViewMode: (mode: 'admin' | 'member') => void;
 }
 
 const AuthContext = createContext<AuthContextType | undefined>(undefined);
 
-import SalesforceService from '../services/SalesforceService';
-
 export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children }) => {
   const [user, setUser] = useState<FirebaseAuthTypes.User | null>(null);
-  const [member, setMember] = useState<SalesforceMember | null>(null);
+  const [member, setMember] = useState<AppMember | null>(null);
   const [loading, setLoading] = useState(true);
   const [viewMode, setViewMode] = useState<'admin' | 'member'>('admin');
 
-  const updateMember = (newMember: SalesforceMember | null) => {
+  const updateMember = (newMember: AppMember | null) => {
     setMember(newMember);
   };
 
@@ -51,27 +49,20 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
       
       if (userState && !userState.isAnonymous) {
         try {
-          const phone = userState.phoneNumber;
-          console.log('🔐 [Auth] User Logged In:', phone);
-          if (phone) {
-            // ── Race Salesforce check against an 8-second timeout ──
-            // This prevents the app from getting stuck if the network is slow
-            const timeout = new Promise<null>((resolve) => setTimeout(() => resolve(null), 8000));
-            const sfCheck = SalesforceService.checkContactExists(phone, userState.uid);
-            
-            const check = await Promise.race([sfCheck, timeout]);
-            
-            if (check?.exists && check.member) {
-              console.log('👤 [Auth] Member Profile Loaded:', check.member.name);
-              setMember(check.member);
-              AsyncStorage.setItem('@cached_member', JSON.stringify(check.member));
-            } else if (check === null) {
-              console.warn('⚠️ [Auth] Salesforce check timed out — proceeding without profile.');
-            }
+          console.log('🔐 [Auth] User Logged In:', userState.uid);
+          // Fetch profile from Firestore
+          const profile = await FirestoreService.getMemberProfile(userState.uid);
+          
+          if (profile) {
+            console.log('👤 [Auth] Member Profile Loaded:', profile.name);
+            setMember(profile);
+            AsyncStorage.setItem('@cached_member', JSON.stringify(profile));
+          } else {
+            console.warn('⚠️ [Auth] No Firestore profile found.');
+            setMember(null);
           }
         } catch (err) {
-          console.error('❌ [Auth] Salesforce Profile Fetch Failed:', err);
-          // Silently continue — app still works without Salesforce profile
+          console.error('❌ [Auth] Profile Fetch Failed:', err);
         }
       } else {
         setMember(null);
@@ -103,7 +94,7 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
   };
 
   return (
-    <AuthContext.Provider value={{ user, member, loading, signInAnonymously, signOut, setMember, viewMode, setViewMode }}>
+    <AuthContext.Provider value={{ user, member, loading, signInAnonymously, signOut, setMember: updateMember, viewMode, setViewMode }}>
       {children}
     </AuthContext.Provider>
   );

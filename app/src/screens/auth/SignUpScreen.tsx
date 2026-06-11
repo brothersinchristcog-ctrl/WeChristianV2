@@ -30,7 +30,7 @@ import {
   ArrowRight
 } from 'lucide-react-native';
 import Theme from '../../theme/Theme';
-import SalesforceService from '../../services/SalesforceService';
+import FirestoreService from '../../services/FirestoreService';
 
 export default function SignUpScreen({ navigation }: any) {
   const [loading, setLoading] = useState(false);
@@ -99,7 +99,7 @@ export default function SignUpScreen({ navigation }: any) {
 
     setLoading(true);
     try {
-      const checkResult = await SalesforceService.checkContactExists(formData.phone);
+      const checkResult = await FirestoreService.checkContactExists(formData.phone);
       if (checkResult?.exists) {
         setShowDuplicateModal(true);
         setLoading(false);
@@ -107,7 +107,7 @@ export default function SignUpScreen({ navigation }: any) {
       }
 
       // 3. Create Salesforce Member
-      const result = await SalesforceService.createMember({ ...formData, uid: undefined });
+      const result = await FirestoreService.createMember({ ...formData, uid: undefined });
       if (result.success) {
         // 4. Update Firebase Profile so name is available instantly
         try {
