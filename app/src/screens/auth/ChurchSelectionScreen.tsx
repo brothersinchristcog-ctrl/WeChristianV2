@@ -179,7 +179,7 @@ export default function ChurchSelectionScreen({ navigation }: Props) {
                 <View style={styles.searchRow}>
                   <TextInput
                     style={styles.searchInput}
-                    placeholder="Church of God..."
+                    placeholder="Search church name..."
                     placeholderTextColor="#94a3b8"
                     value={searchTerm}
                     onChangeText={setSearchTerm}

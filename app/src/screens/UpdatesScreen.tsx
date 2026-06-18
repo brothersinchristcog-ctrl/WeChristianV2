@@ -529,7 +529,7 @@ export default function UpdatesScreen({ navigation, route }: any) {
                   <TouchableOpacity
                     style={styles.joinLiveBtn}
                     onPress={() => {
-                      const liveUrl = selectedUpdate?.url || 'https://www.youtube.com/@Brothersinchristfellowship/live';
+                    const liveUrl = selectedUpdate?.url || activeChurch?.socialLinks?.youtube || 'https://www.youtube.com/@Brothersinchristfellowship/live';
                       Linking.openURL(liveUrl).catch(err => console.error(err));
                     }}
                   >

@@ -150,10 +150,11 @@ export default function BiblePlansScreen({ navigation }: any) {
     try {
       setLoadingProgress(true);
       
-      // 1. Try from Salesforce Custom Object if member is logged in
-      if (member && member.id) {
-        const cloudProgress = await FirestoreService.getBibleProgress(member.id);
-        if (Object.keys(cloudProgress).length > 0) {
+      // 1. Try from Firestore if member is logged in
+      if (member && member.id && member.churchId) {
+        const cloudProgress = await FirestoreService.getBibleProgress(member.churchId, member.id);
+        // Guard against null return (no document yet)
+        if (cloudProgress && Object.keys(cloudProgress).length > 0) {
           setProgress(cloudProgress);
           await AsyncStorage.setItem('@BiblePlansProgress', JSON.stringify(cloudProgress));
           setLoadingProgress(false);
@@ -200,13 +201,13 @@ export default function BiblePlansScreen({ navigation }: any) {
   };
 
   const handleSavePlan = async () => {
-    if (!member || !member.id) {
+    if (!member || !member.id || !member.churchId) {
       Alert.alert('Sign In Required', 'Please sign in to save your progress to the cloud.');
       return;
     }
     setIsSaving(true);
     try {
-      await FirestoreService.saveBibleProgress(member.id, progress);
+      await FirestoreService.saveBibleProgress(member.churchId, member.id, progress);
       setShowSuccess(true);
     } catch (e) {
       console.error('Error saving to cloud:', e);

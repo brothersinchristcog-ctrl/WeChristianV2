@@ -24,7 +24,7 @@ export default function AdminPromiseList() {
   const [missingDates, setMissingDates] = useState<number[]>([]);
   
   // Use local date (YYYY-MM-DD) instead of UTC to avoid timezone mismatches
-  const todayStr = new Date().toLocaleDateString('en-CA'); 
+  const todayStr = (() => { const d = new Date(); return `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, '0')}-${String(d.getDate()).padStart(2, '0')}`; })();
 
   const handleEdit = (item: DailyPromise) => {
     setEditingData(item);
@@ -33,7 +33,7 @@ export default function AdminPromiseList() {
 
   const handleView = (item: DailyPromise) => {
     setEditingData(item);
-    setActiveTab(5); // Go to App Preview tab
+    setActiveTab(1); // Go to Editor tab to view/edit details
   };
 
   useEffect(() => {
@@ -43,7 +43,7 @@ export default function AdminPromiseList() {
   const loadPromises = async () => {
     setLoading(true);
     try {
-      const data = await FirestoreService.getAdminPromises();
+      const data = await FirestoreService.getDailyPromisesArchive();
       setPromises(data);
       
       const now = new Date();
@@ -211,17 +211,21 @@ export default function AdminPromiseList() {
             </TouchableOpacity>
           </View>
           <View style={styles.mGrid}>
-            {missingDates.slice(0, 8).map(d => (
-              <TouchableOpacity key={d} style={styles.mCell} onPress={() => { 
-                const now = new Date();
-                const dStr = `${now.getFullYear()}-${String(now.getMonth() + 1).padStart(2, '0')}-${String(d).padStart(2, '0')}`;
-                setEditingData({ date: dStr }); 
-                setActiveTab(1); 
-              }}>
-                <Text style={styles.mDate}>Apr {d}</Text>
-                <Text style={styles.mAdd}>+ Add</Text>
-              </TouchableOpacity>
-            ))}
+            {missingDates.slice(0, 8).map(d => {
+              const now = new Date();
+              const monthNames = ['Jan', 'Feb', 'Mar', 'Apr', 'May', 'Jun', 'Jul', 'Aug', 'Sep', 'Oct', 'Nov', 'Dec'];
+              const currentMonthShort = monthNames[now.getMonth()];
+              return (
+                <TouchableOpacity key={d} style={styles.mCell} onPress={() => { 
+                  const dStr = `${now.getFullYear()}-${String(now.getMonth() + 1).padStart(2, '0')}-${String(d).padStart(2, '0')}`;
+                  setEditingData({ date: dStr }); 
+                  setActiveTab(1); 
+                }}>
+                  <Text style={styles.mDate}>{currentMonthShort} {d}</Text>
+                  <Text style={styles.mAdd}>+ Add</Text>
+                </TouchableOpacity>
+              );
+            })}
           </View>
         </View>
 

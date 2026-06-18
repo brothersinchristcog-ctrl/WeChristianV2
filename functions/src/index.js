@@ -382,35 +382,36 @@ export const automatedDailyAnniversaries = onSchedule({ schedule: '30 6 * * *', 
         console.error('Error in automatedDailyAnniversaries scheduler:', error);
     }
 });
+import { onDocumentCreated } from 'firebase-functions/v2/firestore';
 /**
- * 📣 ON BROADCAST CREATED TRIGGER (Gen 1 to bypass Eventarc permission issues)
+ * 📣 ON BROADCAST CREATED TRIGGER (Gen 2)
  * Automatically sends push notifications when a new broadcast is added to Firestore (e.g. Emergency Meeting or custom admin updates)
  */
-export const onBroadcastCreated = functionsCompat.firestore
-    .document('broadcasts/{broadcastId}')
-    .onCreate(async (snapshot, context) => {
-    const data = snapshot.data();
-    if (!data) {
+export const onBroadcastCreatedV3 = onDocumentCreated({ document: 'broadcasts/{broadcastId}', region: 'asia-south1' }, async (event) => {
+    const snapshot = event.data;
+    if (!snapshot) {
         console.log('No data associated with the event');
         return;
     }
+    const data = snapshot.data();
+    if (!data)
+        return;
     // Skip if silent/already handled by scheduler
     if (data.silent === true) {
-        console.log(`🛑 Skipping broadcast push for silent document: ${context.params.broadcastId}`);
+        console.log(`🛑 Skipping broadcast push for silent document: ${event.params.broadcastId}`);
         return;
     }
     const title = data.title || 'Church Update';
     const body = data.content || '';
     const type = data.type || 'general';
-    console.log(`🔔 onBroadcastCreated (Gen 1) fired for: [${title}] type: [${type}]`);
+    console.log(`🔔 onBroadcastCreatedV2 fired for: [${title}] type: [${type}]`);
     try {
         const db = getDb();
         let query = db.collection('users');
         // Filter by target phone number if provided (for individual greetings)
         if (data.targetPhone) {
-            const rawDigits = data.targetPhone.replace(/\D/g, '');
-            const last10 = rawDigits.slice(-10);
-            query = query.where('phone', '>=', last10).where('phone', '<=', last10 + '\uf8ff');
+            // We do NOT use query.where() here because if the DB stores +91... it will fail the lexicographical >= check
+            // We will rely on the in-memory .includes() check below instead.
         }
         const snapshotUsers = await query.get();
         const tokenSet = new Set();
@@ -438,7 +439,7 @@ export const onBroadcastCreated = functionsCompat.firestore
             },
             data: {
                 type,
-                id: context.params.broadcastId
+                id: event.params.broadcastId
             },
             android: {
                 priority: 'high',

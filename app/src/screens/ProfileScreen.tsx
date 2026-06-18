@@ -256,9 +256,9 @@ export default function ProfileScreen({ navigation }: any) {
           </View>
         </View>
 
-        <View style={styles.userInfo}>
-          <Text style={styles.userName}>{member?.name || user?.displayName || 'Beloved Member'}</Text>
-          <Text style={styles.userSub}>
+        <View style={styles.headerInfo}>
+          <Text style={styles.userName}>{member?.firstName ? `${member.firstName} ${member.lastName || ''}` : member?.name || user?.displayName || 'Beloved Member'}</Text>
+          <Text style={styles.memberBadge}>
             Church of GOD{member?.mailingCity ? `, ${member.mailingCity}` : ''} · 
             Member since {member?.joinDate ? new Date(member.joinDate).getFullYear() : '2024'}
           </Text>

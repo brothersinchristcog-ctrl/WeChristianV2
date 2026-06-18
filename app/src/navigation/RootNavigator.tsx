@@ -85,7 +85,7 @@ function TabNavigator() {
   const { user, signOut, member, viewMode, setViewMode } = useAuth();
   const insets = useSafeAreaInsets();
   const isGuest = user?.isAnonymous;
-  const isActualAdmin = member?.userType?.toLowerCase() === 'admin';
+  const isActualAdmin = member?.userType?.toLowerCase() === 'admin' || member?.userType?.toLowerCase() === 'super_admin';
 
   const handleGuestInteraction = (e: any) => {
     if (isGuest) {
@@ -211,7 +211,7 @@ function Navigation() {
   const [isLocked, setIsLocked] = useState(false);
   const appState = React.useRef(AppState.currentState);
 
-  const isAdmin = member?.userType?.toLowerCase() === 'admin';
+  const isAdmin = member?.userType?.toLowerCase() === 'admin' || member?.userType?.toLowerCase() === 'super_admin';
   // Show admin UI only when userType is admin AND viewMode is admin
   const showAdminView = isAdmin && viewMode === 'admin';
   const navigationKey = showAdminView ? 'admin-root' : 'member-root';

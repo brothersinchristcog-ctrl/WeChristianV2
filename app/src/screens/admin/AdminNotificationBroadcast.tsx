@@ -226,19 +226,6 @@ export default function AdminNotificationBroadcast() {
         console.warn('⚠️ Firestore Sync (broadcasts) bypassed due to Security Rules:', fErr);
       }
       
-      // Save to Salesforce Org
-      try {
-        await FirestoreService.createNotificationBroadcast({
-          title: manualBroadcast.title,
-          message: manualBroadcast.message,
-          type: 'Announcement',
-          sendTo: manualBroadcast.sendTo || 'All'
-        });
-      } catch (sfErr: any) {
-        console.error('❌ Salesforce Log failed:', sfErr);
-        Alert.alert('Salesforce Sync Error', sfErr.message || 'Unknown error saving to Salesforce.');
-      }
-
       setLastBroadcast(newBroadcast);
       Alert.alert('Broadcast Sent', `Message successfully sent to ${manualBroadcast.sendTo}!`);
       setManualBroadcast({ ...manualBroadcast, title: '', message: '' });
@@ -307,19 +294,6 @@ export default function AdminNotificationBroadcast() {
         console.warn('⚠️ Firestore Sync (lastBroadcast) bypassed due to Security Rules:', fErr);
       }
 
-      // Save to Salesforce Org
-      try {
-        await FirestoreService.createNotificationBroadcast({
-          title: `🚨 EMERGENCY MEETING: ${emergencyAlert.title}`,
-          message: `⏰ TIME: ${fullTimeStr}\n📍 LOCATION: ${emergencyAlert.location}\n\n${emergencyAlert.message}`,
-          type: 'Emergency',
-          sendTo: 'All'
-        });
-      } catch (sfErr: any) {
-        console.error('❌ Salesforce Log failed:', sfErr);
-        Alert.alert('Salesforce Sync Error', sfErr.message || 'Unknown error saving to Salesforce.');
-      }
-
       setLastBroadcast(newBroadcast);
       Alert.alert(
         '🚨 Emergency Alert Broadcasted', 
@@ -354,6 +328,7 @@ export default function AdminNotificationBroadcast() {
                     content: `Dear Member, ${birthdayNotif.greeting}`,
                     date: dateStr,
                     type: 'birthday',
+                    silent: true,
                     createdAt: serverTimestamp()
                   });
                 } catch (fErr) {
@@ -375,6 +350,7 @@ export default function AdminNotificationBroadcast() {
               content: birthdayNotif.greeting,
               date: dateStr,
               type: 'birthday',
+              silent: true,
               createdAt: serverTimestamp()
             });
           } catch (fErr) {
@@ -411,6 +387,7 @@ export default function AdminNotificationBroadcast() {
                     content: `Wishing all couples celebrating their wedding anniversary today a wonderful year filled with love & joy! ${anniversaryNotif.greeting}`,
                     date: dateStr,
                     type: 'anniversary',
+                    silent: true,
                     createdAt: serverTimestamp()
                   });
                 } catch (fErr) {
@@ -430,6 +407,7 @@ export default function AdminNotificationBroadcast() {
               content: `Wishing Brother ${ann.husband} & Sister ${ann.wife} a wonderful ${ann.years}th Wedding Anniversary! ${anniversaryNotif.greeting}`,
               date: dateStr,
               type: 'anniversary',
+              silent: true,
               createdAt: serverTimestamp()
             });
           } catch (fErr) {

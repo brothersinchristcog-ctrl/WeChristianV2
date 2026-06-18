@@ -65,7 +65,7 @@ export default function AdminPromiseEditor() {
   const [showStatusPicker, setShowStatusPicker] = useState(false);
   
   const [form, setForm] = useState({
-    date: new Date().toLocaleDateString('en-CA'),
+    date: (() => { const d = new Date(); return `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, '0')}-${String(d.getDate()).padStart(2, '0')}`; })(),
     enRef: '',
     enVerse: '',
     enNote: '',
@@ -93,7 +93,7 @@ export default function AdminPromiseEditor() {
       
       setForm({
         ...form,
-        date: editingData.date || new Date().toLocaleDateString('en-CA'),
+        date: editingData.date || (() => { const d = new Date(); return `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, '0')}-${String(d.getDate()).padStart(2, '0')}`; })(),
         enVerse: stripHtml(editingData.verse) || '',
         enRef: cleanEnRef || '',
         teVerse: stripHtml(editingData.verseTelugu) || '',
@@ -110,7 +110,7 @@ export default function AdminPromiseEditor() {
     } else {
       // Reset for NEW promise
       setForm({
-        date: new Date().toLocaleDateString('en-CA'),
+        date: (() => { const d = new Date(); return `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, '0')}-${String(d.getDate()).padStart(2, '0')}`; })(),
         enRef: '',
         enVerse: '',
         enNote: '',
@@ -171,13 +171,19 @@ export default function AdminPromiseEditor() {
   };
 
   const uploadImageToCloud = async (localUri: string): Promise<string> => {
-    const filename = localUri.split('/').pop() || `promise_${Date.now()}.jpg`;
-    const base64Data = await FileSystem.readAsStringAsync(localUri, { encoding: 'base64' });
-    const { functions } = require('../../services/firebaseConfig');
-    const uploadFunc = functions().httpsCallable('uploadEventImage');
-    const response = await uploadFunc({ image: base64Data, fileName: filename });
-    if (response.data?.success && response.data?.url) return response.data.url;
-    throw new Error('Cloud upload failed');
+    try {
+      const storage = require('@react-native-firebase/storage').default;
+      const ext = localUri.substring(localUri.lastIndexOf('.') + 1) || 'jpg';
+      const storagePath = `promises/thumbnails/promise_${Date.now()}.${ext}`;
+      
+      const reference = storage().ref(storagePath);
+      await reference.putFile(localUri);
+      const downloadURL = await reference.getDownloadURL();
+      return downloadURL;
+    } catch (error) {
+      console.error('Storage upload failed:', error);
+      throw new Error('Cloud upload failed');
+    }
   };
 
   const pickThumbnail = async () => {
@@ -232,6 +238,24 @@ export default function AdminPromiseEditor() {
       
       await FirestoreService.createDailyPromise(details);
 
+      // 🔔 Push notification to all members when publishing
+      if (finalStatus === 'Published') {
+        try {
+          const { getFirestore, collection, addDoc, serverTimestamp } = require('@react-native-firebase/firestore');
+          const db = getFirestore();
+          await addDoc(collection(db, 'broadcasts'), {
+            title: `📖 Daily Promise: ${form.enRef || 'Today\'s Verse'}`,
+            content: `"${form.enVerse}" ${form.enRef ? `— ${form.enRef}` : ''}`,
+            date: form.date,
+            type: 'promise',
+            createdAt: serverTimestamp()
+          });
+          console.log('🔔 Daily Promise push notification queued.');
+        } catch (notifErr) {
+          console.warn('⚠️ Daily Promise push notification failed:', notifErr);
+        }
+      }
+
       setShowSuccess(true);
     } catch (err: any) {
       setErrorMsg(err.message || 'Failed to save to Salesforce. Please check your connection.');
@@ -256,22 +280,27 @@ export default function AdminPromiseEditor() {
         <View style={styles.modalOverlay}>
           <View style={styles.pickerCard}>
             <View style={styles.pickerHd}>
-              <Text style={styles.pickerTitle}>Select Date (April 2026)</Text>
+              <Text style={styles.pickerTitle}>Select Date ({new Date().toLocaleString('en-US', { month: 'long' })} {new Date().getFullYear()})</Text>
               <TouchableOpacity onPress={() => setShowDatePicker(false)}><X size={20} color="#1a2d5a" /></TouchableOpacity>
             </View>
             <View style={styles.calGrid}>
-              {days.map(d => (
-                <TouchableOpacity 
-                  key={d} 
-                  style={[styles.calCell, form.date === `2026-04-${String(d).padStart(2,'0')}` && styles.calCellActive]}
-                  onPress={() => {
-                    setForm({...form, date: `2026-04-${String(d).padStart(2,'0')}`});
-                    setShowDatePicker(false);
-                  }}
-                >
-                  <Text style={[styles.calCellTxt, form.date === `2026-04-${String(d).padStart(2,'0')}` && styles.calCellTxtActive]}>{d}</Text>
-                </TouchableOpacity>
-              ))}
+              {days.map(d => {
+                const year = new Date().getFullYear();
+                const monthStr = String(new Date().getMonth() + 1).padStart(2, '0');
+                const dStr = `${year}-${monthStr}-${String(d).padStart(2,'0')}`;
+                return (
+                  <TouchableOpacity 
+                    key={d} 
+                    style={[styles.calCell, form.date === dStr && styles.calCellActive]}
+                    onPress={() => {
+                      setForm({...form, date: dStr});
+                      setShowDatePicker(false);
+                    }}
+                  >
+                    <Text style={[styles.calCellTxt, form.date === dStr && styles.calCellTxtActive]}>{d}</Text>
+                  </TouchableOpacity>
+                );
+              })}
             </View>
           </View>
         </View>

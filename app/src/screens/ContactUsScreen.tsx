@@ -17,6 +17,8 @@ import Svg, { Path, Rect, Circle } from 'react-native-svg';
 import firestore from '@react-native-firebase/firestore';
 
 interface ContactData {
+  churchName: string;
+  churchSubtitle: string;
   address: string;
   phoneNumbers: string[];
   emails: string[];
@@ -28,13 +30,15 @@ interface ContactData {
 }
 
 const DEFAULT: ContactData = {
-  address: 'Church of God, Hyderabad, Telangana, India',
-  phoneNumbers: ['+91 99999 00000'],
-  emails: ['info@brothersinchristcog.org'],
+  churchName: '',
+  churchSubtitle: '',
+  address: '',
+  phoneNumbers: [],
+  emails: [],
   socialLinks: {
-    youtube: 'https://www.youtube.com/@Brothersinchristfellowship',
-    instagram: 'https://www.instagram.com/brothersinchristcog',
-    facebook: 'https://www.facebook.com/brothersinchristcog',
+    youtube: '',
+    instagram: '',
+    facebook: '',
   },
 };
 
@@ -74,6 +78,8 @@ export default function ContactUsScreen() {
           if (doc.exists()) {
             const d = doc.data() as ContactData;
             setData({
+              churchName: d.churchName || DEFAULT.churchName,
+              churchSubtitle: d.churchSubtitle || DEFAULT.churchSubtitle,
               address: d.address || DEFAULT.address,
               phoneNumbers: d.phoneNumbers?.length ? d.phoneNumbers : DEFAULT.phoneNumbers,
               emails: d.emails?.length ? d.emails : DEFAULT.emails,
@@ -135,8 +141,8 @@ export default function ContactUsScreen() {
               <Text style={styles.detailsCardTitle}>Our Details</Text>
             </View>
             <View style={styles.detailsDivider} />
-            <Text style={styles.churchName}>Church of GOD</Text>
-            <Text style={styles.churchSubtitle}>Brothers in Christ Fellowship</Text>
+            <Text style={styles.churchName}>{data.churchName}</Text>
+            <Text style={styles.churchSubtitle}>{data.churchSubtitle}</Text>
             <View style={styles.addressRow}>
               <MapPin size={14} color="#94a3b8" style={{ marginTop: 1 }} />
               <Text style={styles.addressText}>{data.address}</Text>

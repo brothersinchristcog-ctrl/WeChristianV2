@@ -17,6 +17,8 @@ import firestore from '@react-native-firebase/firestore';
 import { AdminTabContext } from '../../context/AdminTabContext';
 
 interface ContactData {
+  churchName: string;
+  churchSubtitle: string;
   address: string;
   phoneNumbers: string[];
   emails: string[];
@@ -29,13 +31,15 @@ interface ContactData {
 }
 
 const DEFAULT_CONTACT: ContactData = {
-  address: 'Church of God, Hyderabad, Telangana, India',
-  phoneNumbers: ['+91 99999 00000'],
-  emails: ['info@brothersinchristcog.org'],
+  churchName: '',
+  churchSubtitle: '',
+  address: '',
+  phoneNumbers: [''],
+  emails: [''],
   socialLinks: {
-    youtube: 'https://www.youtube.com/@Brothersinchristfellowship',
-    instagram: 'https://www.instagram.com/brothersinchristcog',
-    facebook: 'https://www.facebook.com/brothersinchristcog',
+    youtube: '',
+    instagram: '',
+    facebook: '',
   },
 };
 
@@ -75,6 +79,8 @@ export default function AdminContactUsEditor() {
       if (doc.exists()) {
         const d = doc.data() as ContactData;
         const fetched: ContactData = {
+          churchName: d.churchName || DEFAULT_CONTACT.churchName,
+          churchSubtitle: d.churchSubtitle || DEFAULT_CONTACT.churchSubtitle,
           address: d.address || DEFAULT_CONTACT.address,
           phoneNumbers: d.phoneNumbers?.length ? d.phoneNumbers : DEFAULT_CONTACT.phoneNumbers,
           emails: d.emails?.length ? d.emails : DEFAULT_CONTACT.emails,
@@ -260,6 +266,17 @@ export default function AdminContactUsEditor() {
               <View style={[styles.modeBanner, { backgroundColor: '#fef3c7' }]}>
                 <Edit2 size={13} color="#b45309" />
                 <Text style={[styles.modeBannerTxt, { color: '#b45309' }]}>Editing — tap Save to update</Text>
+              </View>
+
+              {/* Church Name */}
+              <View style={styles.fieldCard}>
+                <View style={styles.fieldLabelRow}><Text style={{fontSize:16}}>⛪</Text><Text style={styles.fieldLabel}>Church Name</Text></View>
+                <TextInput style={styles.input} value={draft.churchName} onChangeText={(t) => setDraft((p) => ({ ...p, churchName: t }))} placeholder="E.g. Church of GOD" placeholderTextColor="#94a3b8" />
+              </View>
+
+              <View style={styles.fieldCard}>
+                <View style={styles.fieldLabelRow}><Text style={{fontSize:16}}>🏷️</Text><Text style={styles.fieldLabel}>Church Subtitle</Text></View>
+                <TextInput style={styles.input} value={draft.churchSubtitle} onChangeText={(t) => setDraft((p) => ({ ...p, churchSubtitle: t }))} placeholder="E.g. Brothers in Christ Fellowship" placeholderTextColor="#94a3b8" />
               </View>
 
               {/* Address */}

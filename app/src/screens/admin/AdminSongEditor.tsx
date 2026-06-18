@@ -60,7 +60,7 @@ export default function AdminSongEditor() {
   // ── POST SONG FORM ──────────────────────────────
   const [titleEn, setTitleEn] = useState('');
   const [titleTe, setTitleTe] = useState('');
-  const [artist, setArtist] = useState('COG Worship');
+  const [artist, setArtist] = useState('');
   const [lyrics, setLyrics] = useState('');
   const [status, setStatus] = useState('Published');
   const [categories, setCategories] = useState<string[]>(['Stuthi Songs']);
@@ -137,7 +137,7 @@ export default function AdminSongEditor() {
     try {
       const primaryCategory = categories.join(';') || 'Other';
       const receipt = await FirestoreService.createWorshipSong({
-        titleEn: titleEn.trim(),
+        title: titleEn.trim(),
         titleTe: titleTe.trim(),
         artist: artist.trim(),
         lyrics: lyrics.trim(),
@@ -145,7 +145,7 @@ export default function AdminSongEditor() {
         category: primaryCategory,
         youtubeId: youtubeId.trim()
       });
-      setSyncReceipt({ savedTo: receipt.savedTo, id: receipt.id });
+      setSyncReceipt({ savedTo: 'Firebase DB', id: typeof receipt === 'string' ? receipt : (receipt as any)?.id || 'Unknown' });
 
       const db = getFirestore();
       try {
@@ -176,7 +176,7 @@ export default function AdminSongEditor() {
 
   const resetForm = () => {
     setTitleEn(''); setTitleTe(''); setLyrics(''); setYoutubeId('');
-    setArtist('COG Worship'); setCategories(['Stuthi Songs']); setStatus('Published');
+    setArtist(''); setCategories(['Stuthi Songs']); setStatus('Published');
   };
 
   // ── OPEN EDIT MODAL ──────────────────────────────
@@ -184,7 +184,7 @@ export default function AdminSongEditor() {
     setEditingSong(song);
     setEditTitle(song.title);
     setEditTitleTe(song.titleTe || '');
-    setEditArtist(song.artist || 'COG Worship');
+    setEditArtist(song.artist || '');
     setEditLyrics(song.lyrics || '');
     // Split semicolon-separated categories back into array
     const cats = (song.category || 'Stuthi Songs')
@@ -201,7 +201,7 @@ export default function AdminSongEditor() {
     try {
       const primaryEditCategory = editCategories.join(';') || 'Other';
       await FirestoreService.updateWorshipSong(editingSong.id, {
-        titleEn: editTitle.trim(),
+        title: editTitle.trim(),
         titleTe: editTitleTe.trim(),
         artist: editArtist.trim(),
         lyrics: editLyrics.trim(),
@@ -465,8 +465,8 @@ export default function AdminSongEditor() {
 
         {/* Artist */}
         <View style={styles.inputGroup}>
-          <Text style={styles.label}>ARTIST / BAND</Text>
-          <TextInput style={styles.textInput} placeholder="COG Worship..."
+          <Text style={styles.label}>ARTIST / BAND (Optional)</Text>
+          <TextInput style={styles.textInput} placeholder=""
             placeholderTextColor="#94a3b8" value={artist} onChangeText={setArtist} />
         </View>
 
@@ -646,9 +646,9 @@ export default function AdminSongEditor() {
                   <TextInput style={[styles.textInput, { marginBottom: 14 }]} value={editTitleTe}
                     onChangeText={setEditTitleTe} placeholder="తెలుగు శీర్షిక..." placeholderTextColor="#94a3b8" />
 
-                  <Text style={styles.label}>ARTIST</Text>
+                  <Text style={styles.label}>ARTIST / BAND (Optional)</Text>
                   <TextInput style={[styles.textInput, { marginBottom: 14 }]} value={editArtist}
-                    onChangeText={setEditArtist} placeholder="COG Worship..." placeholderTextColor="#94a3b8" />
+                    onChangeText={setEditArtist} placeholder="" placeholderTextColor="#94a3b8" />
 
                   {/* Edit Categories multi-select */}
                   <Text style={[styles.label, { marginBottom: 6 }]}>CATEGORIES (tap to toggle)</Text>
@@ -740,7 +740,7 @@ export default function AdminSongEditor() {
               </View>
               <Text style={styles.successTitle}>Publication Successful!</Text>
               <Text style={styles.successDesc}>
-                "{titleEn}" has been published under <Text style={{ fontWeight: '800', color: '#1a2d5a' }}>{categories[0] || 'Other'}</Text> and synced to Salesforce!
+                "{titleEn}" has been published under <Text style={{ fontWeight: '800', color: '#1a2d5a' }}>{categories[0] || 'Other'}</Text> and saved to the database!
               </Text>
               <View style={styles.summaryBox}>
                 <Text style={styles.summaryLbl}>SALESFORCE RECEIPT</Text>
