@@ -83,7 +83,7 @@ export default function GivingScreen({ navigation }: any) {
         phone: user?.phoneNumber || '',
         churchId: activeChurch?.id || ''
       });
-      // PhonePe Integration
+      // Try PhonePe gateway first, fall back to UPI deep link if not available
       const paymentResult = await PhonePeService.startPaymentFlow(
         numAmt, 
         user?.uid || 'guest', 
@@ -91,7 +91,14 @@ export default function GivingScreen({ navigation }: any) {
       );
 
       if (!paymentResult.success) {
-        Alert.alert('Payment Error', paymentResult.error || 'Failed to initialize payment gateway.');
+        // Fallback to direct UPI deep link (works immediately without backend)
+        const upiUrl = `upi://pay?pa=${upiId}&pn=${encodeURIComponent(payeeName)}&am=${numAmt}&cu=INR`;
+        const canOpen = await Linking.canOpenURL(upiUrl);
+        if (canOpen) {
+          await Linking.openURL(upiUrl);
+        } else {
+          Alert.alert('No UPI App', 'Please install PhonePe or Google Pay to continue.');
+        }
       }
 
     } catch (err) {

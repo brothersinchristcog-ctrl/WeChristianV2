@@ -535,7 +535,7 @@ export default function HomeScreen() {
             <GridItem icon={<Sun size={26} color="#fff" />} label="Devotion" color="#b45309" onPress={() => Alert.alert('Daily Devotion', 'Devotion feeds coming soon!')} />
             <GridItem icon={<Info size={26} color="#fff" />} label="About Us" color="#1a2d5a" onPress={() => navigation.navigate('AboutUs')} />
             <GridItem icon={<Phone size={26} color="#fff" />} label="Contact Us" color="#0F766E" onPress={() => navigation.navigate('ContactUs')} />
-            <GridItem icon={<MessageCircle size={26} color="#fff" />} label="WhatsApp" color="#25D366" onPress={() => openWhatsApp('+919876543210', 'Hi, I need help with the app!')} />
+            <GridItem icon={<MessageCircle size={26} color="#fff" />} label="WhatsApp" color="#25D366" onPress={() => openWhatsApp('+918000504070', 'Hi, I need help with the app!')} />
             <GridItem icon={<MoreHorizontal size={26} color="#fff" />} label="More" color="#64748b" onPress={() => Alert.alert('More Features', 'More features coming soon!')} />
           </View>
 

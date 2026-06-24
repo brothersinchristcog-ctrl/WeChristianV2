@@ -34,7 +34,4 @@ jobs:
         working-directory: functions
 
       - name: Deploy Functions to Firebase
-        run: |
-          echo "${{ secrets.FIREBASE_SERVICE_ACCOUNT }}" > /tmp/serviceKey.json
-          export GOOGLE_APPLICATION_CREDENTIALS=/tmp/serviceKey.json
-          firebase deploy --only functions --project wechristian-67f07
+        run: firebase deploy --only functions --project wechristian-67f07 --token "${{ secrets.FIREBASE_TOKEN }}"
