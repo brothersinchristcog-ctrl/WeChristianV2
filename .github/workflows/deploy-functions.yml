@@ -1,0 +1,40 @@
+name: Deploy Firebase Functions
+
+on:
+  push:
+    branches:
+      - main
+      - feature/integrations-2026-06-24
+    paths:
+      - 'functions/**'
+
+jobs:
+  deploy:
+    name: Deploy Firebase Functions
+    runs-on: ubuntu-latest
+
+    steps:
+      - name: Checkout code
+        uses: actions/checkout@v4
+
+      - name: Setup Node.js
+        uses: actions/setup-node@v4
+        with:
+          node-version: '22'
+
+      - name: Install Firebase Tools
+        run: npm install -g firebase-tools
+
+      - name: Install Functions Dependencies
+        run: npm install
+        working-directory: functions
+
+      - name: Build Functions
+        run: npm run build
+        working-directory: functions
+
+      - name: Deploy Functions to Firebase
+        run: |
+          echo "${{ secrets.FIREBASE_SERVICE_ACCOUNT }}" > /tmp/serviceKey.json
+          export GOOGLE_APPLICATION_CREDENTIALS=/tmp/serviceKey.json
+          firebase deploy --only functions --project wechristian-67f07
