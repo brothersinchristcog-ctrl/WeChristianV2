@@ -39,7 +39,10 @@ export class PhonePeService {
 
       return { success: true, transactionId: data.transactionId };
     } catch (error: any) {
-      console.error('PhonePeService startPaymentFlow error:', error);
+      // If the function is not deployed yet, we silently return false so the UI can fall back to UPI
+      if (error?.code !== 'functions/not-found' && error?.message !== 'NOT_FOUND') {
+        console.warn('PhonePeService startPaymentFlow error:', error);
+      }
       return { success: false, error: error.message || 'Payment initiation failed' };
     }
   }
