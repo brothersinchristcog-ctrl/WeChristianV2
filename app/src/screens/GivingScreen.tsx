@@ -1,4 +1,5 @@
 import React, { useState, useEffect } from 'react';
+import { PhonePeService } from '../services/PhonePeService';
 import {
   StyleSheet,
   View,
@@ -82,14 +83,17 @@ export default function GivingScreen({ navigation }: any) {
         phone: user?.phoneNumber || '',
         churchId: activeChurch?.id || ''
       });
-      const upiUrl = `upi://pay?pa=${upiId}&pn=${encodeURIComponent(payeeName)}&am=${numAmt}&cu=INR`;
+      // PhonePe Integration
+      const paymentResult = await PhonePeService.startPaymentFlow(
+        numAmt, 
+        user?.uid || 'guest', 
+        user?.phoneNumber || ''
+      );
 
-      const canOpen = await Linking.canOpenURL(upiUrl);
-      if (canOpen) {
-        await Linking.openURL(upiUrl);
-      } else {
-        Alert.alert('No UPI App', 'Please install a UPI app (PhonePe, Google Pay) to continue.');
+      if (!paymentResult.success) {
+        Alert.alert('Payment Error', paymentResult.error || 'Failed to initialize payment gateway.');
       }
+
     } catch (err) {
       Alert.alert('Error', 'Unable to initiate payment. Please try again.');
     } finally {
