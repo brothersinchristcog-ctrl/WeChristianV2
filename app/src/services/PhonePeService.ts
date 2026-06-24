@@ -1,6 +1,12 @@
-import functions from '@react-native-firebase/functions';
 import * as WebBrowser from 'expo-web-browser';
+import * as Crypto from 'expo-crypto';
+import { Buffer } from 'buffer';
 import { Platform } from 'react-native';
+
+const MERCHANT_ID = 'PGTESTPAYUAT';
+const SALT_KEY = '099eb0cd-02cf-4e2a-8aca-3e6c6aff0399';
+const SALT_INDEX = '1';
+const PHONEPE_HOST = 'https://api-preprod.phonepe.com/apis/pg-sandbox';
 
 export class PhonePeService {
   /**
@@ -12,37 +18,71 @@ export class PhonePeService {
    */
   static async startPaymentFlow(amount: number, userId: string, mobileNumber?: string): Promise<{ success: boolean; transactionId?: string; error?: string }> {
     try {
-      const initiatePayment = functions().httpsCallable('initiatePhonePePayment');
+      const transactionId = `TXN${Date.now()}${Math.floor(Math.random() * 1000)}`;
       
-      // 1. Call backend to get the payment URL
-      const response = await initiatePayment({ amount, userId, mobileNumber });
-      const data = response.data as { success: boolean; redirectUrl: string; transactionId: string };
+      // 1. Construct payload
+      const payload = {
+        merchantId: MERCHANT_ID,
+        merchantTransactionId: transactionId,
+        merchantUserId: userId,
+        amount: amount * 100, // Amount in paise
+        redirectUrl: `https://phonepe.com`, // Dummy callback for UAT
+        redirectMode: 'REDIRECT',
+        callbackUrl: `https://phonepe.com`,
+        mobileNumber: mobileNumber || '',
+        paymentInstrument: {
+          type: 'PAY_PAGE'
+        }
+      };
+
+      const payloadString = JSON.stringify(payload);
+      const base64EncodedPayload = Buffer.from(payloadString).toString('base64');
       
-      if (!data.success || !data.redirectUrl) {
-        throw new Error('Failed to get payment redirect URL');
+      // 2. Checksum = sha256(base64Payload + apiEndPoint + saltKey) + ### + saltIndex
+      const stringToHash = base64EncodedPayload + '/pg/v1/pay' + SALT_KEY;
+      
+      // Calculate SHA256 using expo-crypto
+      const sha256 = await Crypto.digestStringAsync(
+        Crypto.CryptoDigestAlgorithm.SHA256,
+        stringToHash
+      );
+      
+      const checksum = `${sha256}###${SALT_INDEX}`;
+
+      // 3. Call PhonePe UAT API directly from the client (FOR TESTING ONLY)
+      const response = await fetch(`${PHONEPE_HOST}/pg/v1/pay`, {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json',
+          'X-VERIFY': checksum,
+          'X-MERCHANT-ID': MERCHANT_ID
+        },
+        body: JSON.stringify({
+          request: base64EncodedPayload
+        })
+      });
+
+      const responseData = await response.json();
+      
+      if (!responseData.success) {
+        throw new Error(responseData.message || 'Failed to get payment redirect URL');
       }
 
-      // 2. Open the URL in an in-app browser
+      const redirectUrl = responseData.data.instrumentResponse.redirectInfo.url;
+
+      // 4. Open the URL in an in-app browser
       if (Platform.OS !== 'web') {
-        const result = await WebBrowser.openBrowserAsync(data.redirectUrl);
-        
-        // When the user closes the browser, we assume they completed the flow
-        // The backend webhook will handle actual status verification
+        const result = await WebBrowser.openBrowserAsync(redirectUrl);
         if (result.type === 'cancel' || result.type === 'dismiss') {
-           // User closed the browser early
            console.log('User closed payment browser');
         }
       } else {
-        // Fallback for web
-        window.open(data.redirectUrl, '_blank');
+        window.open(redirectUrl, '_blank');
       }
 
-      return { success: true, transactionId: data.transactionId };
+      return { success: true, transactionId };
     } catch (error: any) {
-      // If the function is not deployed yet, we silently return false so the UI can fall back to UPI
-      if (error?.code !== 'functions/not-found' && error?.message !== 'NOT_FOUND') {
-        console.warn('PhonePeService startPaymentFlow error:', error);
-      }
+      console.error('PhonePeService startPaymentFlow error:', error);
       return { success: false, error: error.message || 'Payment initiation failed' };
     }
   }
