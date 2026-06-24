@@ -1,4 +1,4 @@
-import { getFunctions, httpsCallable } from 'firebase/functions';
+import functions from '@react-native-firebase/functions';
 import * as WebBrowser from 'expo-web-browser';
 import { Platform } from 'react-native';
 
@@ -12,8 +12,7 @@ export class PhonePeService {
    */
   static async startPaymentFlow(amount: number, userId: string, mobileNumber?: string): Promise<{ success: boolean; transactionId?: string; error?: string }> {
     try {
-      const functions = getFunctions();
-      const initiatePayment = httpsCallable(functions, 'initiatePhonePePayment');
+      const initiatePayment = functions().httpsCallable('initiatePhonePePayment');
       
       // 1. Call backend to get the payment URL
       const response = await initiatePayment({ amount, userId, mobileNumber });

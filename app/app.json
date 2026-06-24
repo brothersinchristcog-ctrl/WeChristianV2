@@ -41,7 +41,9 @@
       "expo-web-browser"
     ],
     "extra": {
-      "eas": {}
+      "eas": {
+        "projectId": "c20972c0-5a37-49f5-80f9-7d38334454c0"
+      }
     },
     "runtimeVersion": {
       "policy": "appVersion"
