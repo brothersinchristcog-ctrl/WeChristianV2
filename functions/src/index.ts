@@ -410,7 +410,7 @@ export const automatedDailyAnniversaries = onSchedule({ schedule: '30 6 * * *', 
  * 📣 ON BROADCAST CREATED TRIGGER (Gen 1 to bypass Eventarc permission issues)
  * Automatically sends push notifications when a new broadcast is added to Firestore (e.g. Emergency Meeting or custom admin updates)
  */
-export const onBroadcastCreated = functionsCompat.firestore
+export const onBroadcastCreated = functionsCompat.region('asia-south1').firestore
   .document('broadcasts/{broadcastId}')
   .onCreate(async (snapshot, context) => {
     const data = snapshot.data();
