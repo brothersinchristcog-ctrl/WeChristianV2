@@ -107,7 +107,7 @@ export default function SignUpScreen({ navigation }: any) {
       }
 
       // 3. Create Salesforce Member
-      const result = await FirestoreService.createMember({ ...formData, uid: undefined });
+      const result = await FirestoreService.createMember({ ...formData });
       if (result.success) {
         // 4. Update Firebase Profile so name is available instantly
         try {

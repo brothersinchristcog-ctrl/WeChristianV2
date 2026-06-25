@@ -53,6 +53,13 @@ export default function AdminCelebrations() {
       
       const parsed: any[] = [];
 
+      const getFullName = (rec: any) => {
+        if (rec.Name) return rec.Name;
+        if (rec.name) return rec.name;
+        if (rec.firstName) return `${rec.firstName} ${rec.lastName || ''}`.trim();
+        return undefined;
+      };
+
       data.forEach(rec => {
         // Handle Birthdays
         const birthDate = rec.Birthdate || rec.dob;
@@ -61,7 +68,7 @@ export default function AdminCelebrations() {
             id: `bday-${rec.Id || rec.id || Math.random()}`,
             contactId: rec.Id || rec.id,
             type: 'birthday',
-            name: rec.Name || rec.name,
+            name: getFullName(rec),
             phone: rec.Phone || rec.MobilePhone || rec.phone,
             date: birthDate,
             years: calculateYears(birthDate)
@@ -89,7 +96,7 @@ export default function AdminCelebrations() {
             id: `anniv-${husband.Id || husband.id || Math.random()}`,
             contactId: husband.Id || husband.id,
             type: 'anniversary',
-            name: group.length > 1 ? `${husband.Name || husband.name} & ${wife.Name || wife.name}` : (husband.Name || husband.name),
+            name: group.length > 1 ? `${getFullName(husband)} & ${getFullName(wife)}` : getFullName(husband),
             phone: husband.Phone || husband.MobilePhone || husband.phone || wife.Phone || wife.MobilePhone || wife.phone,
             date: husband.resolvedAnniv,
             years: calculateYears(husband.resolvedAnniv)
@@ -163,8 +170,9 @@ export default function AdminCelebrations() {
       return;
     }
 
-    const firstName = item.name.split(' ')[0];
-    setSelectedItem(item);
+    const fullName = item.name || 'Member';
+    const firstName = fullName.split(' ')[0];
+    setSelectedItem({ ...item, name: fullName });
     setMessageTitle(item.type === 'birthday' ? `🎂 Happy Birthday, ${firstName}!` : `💐 Happy Anniversary!`);
     setMessageText(item.type === 'birthday' 
       ? `Dear ${firstName}, wishing you a very Happy Birthday! May God bless you abundantly and fulfill all your prayers today. 🎂🙏\n\n— Brothers in Christ Fellowship` 
