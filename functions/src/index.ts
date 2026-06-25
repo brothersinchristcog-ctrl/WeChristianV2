@@ -1,6 +1,9 @@
 import { onCall, onRequest, HttpsError } from 'firebase-functions/v2/https';
 import { onSchedule } from 'firebase-functions/v2/scheduler';
+import { setGlobalOptions } from 'firebase-functions/v2';
 import * as functionsCompat from 'firebase-functions/v1';
+
+setGlobalOptions({ maxInstances: 1, memory: '256MiB', concurrency: 80 });
 import { initializeApp } from 'firebase-admin/app';
 import { getFirestore, FieldValue } from 'firebase-admin/firestore';
 import { getMessaging } from 'firebase-admin/messaging';
@@ -406,14 +409,21 @@ export const automatedDailyAnniversaries = onSchedule({ schedule: '30 6 * * *', 
   }
 });
 
+import { onDocumentCreated } from 'firebase-functions/v2/firestore';
+
 /**
- * 📣 ON BROADCAST CREATED TRIGGER (Gen 1 to bypass Eventarc permission issues)
+ * 📣 ON BROADCAST CREATED TRIGGER (Gen 2)
  * Automatically sends push notifications when a new broadcast is added to Firestore (e.g. Emergency Meeting or custom admin updates)
  */
-export const onBroadcastCreated = functionsCompat.region('asia-south1').firestore
-  .document('broadcasts/{broadcastId}')
-  .onCreate(async (snapshot, context) => {
-    const data = snapshot.data();
+export const onBroadcastCreated = onDocumentCreated(
+  {
+    document: 'broadcasts/{broadcastId}',
+    region: 'asia-south1'
+  },
+  async (event) => {
+    const data = event.data?.data();
+    const context = { params: event.params };
+    
     if (!data) {
       console.log('No data associated with the event');
       return;
@@ -429,7 +439,7 @@ export const onBroadcastCreated = functionsCompat.region('asia-south1').firestor
     const body = data.content || '';
     const type = data.type || 'general';
 
-    console.log(`🔔 onBroadcastCreated (Gen 1) fired for: [${title}] type: [${type}]`);
+    console.log(`🔔 onBroadcastCreated (Gen 2) fired for: [${title}] type: [${type}]`);
 
     try {
       const db = getDb();
