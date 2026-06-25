@@ -1,1 +1,1 @@
-deploy_wa_test
+deploy_token

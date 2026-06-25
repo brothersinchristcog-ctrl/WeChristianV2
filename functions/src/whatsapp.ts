@@ -52,7 +52,7 @@ export const onPersonalGreetingCreated = onDocumentCreated(
             type: 'text',
             text: { 
               preview_url: false,
-              body: data.body
+              body: data.body || data.content || 'Church Notification'
             }
           })
         });
