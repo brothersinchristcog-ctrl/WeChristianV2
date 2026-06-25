@@ -91,4 +91,5 @@ export declare const triggerTestYouTubeLive: import("firebase-functions/v2/https
     message?: never;
 }>, unknown>;
 export { initiatePhonePePayment, phonepeWebhook } from './phonepe.js';
+export * from './whatsapp.js';
 //# sourceMappingURL=index.d.ts.map

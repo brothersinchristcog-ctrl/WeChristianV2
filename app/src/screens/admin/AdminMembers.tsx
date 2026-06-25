@@ -68,26 +68,61 @@ export default function AdminMembers() {
       .toUpperCase();
   };
 
-  const formatLastAppOpened = (dateStr: string) => {
-    if (!dateStr) return 'Never';
+  // Safely convert any value to a displayable string (prevents Firestore Timestamp crash)
+  const safeText = (value: any): string => {
+    if (value === null || value === undefined) return '';
+    if (typeof value === 'string') return value;
+    if (typeof value === 'number') return String(value);
+    if (typeof value === 'boolean') return value ? 'Yes' : 'No';
+    // Handle Firestore Timestamp object
+    if (value && typeof value === 'object' && '_seconds' in value) {
+      return formatTimestamp(value._seconds);
+    }
+    // Handle Firestore Timestamp with toDate method
+    if (value && typeof value.toDate === 'function') {
+      return formatDate(value.toDate());
+    }
+    return '';
+  };
+
+  const formatTimestamp = (seconds: number): string => {
     try {
-      const date = new Date(dateStr);
-      if (isNaN(date.getTime())) return dateStr;
-      
-      const months = ['Jan', 'Feb', 'Mar', 'Apr', 'May', 'Jun', 'Jul', 'Aug', 'Sep', 'Oct', 'Nov', 'Dec'];
-      const month = months[date.getMonth()];
-      const day = date.getDate();
-      const year = date.getFullYear();
-      
-      let hours = date.getHours();
-      const minutes = date.getMinutes().toString().padStart(2, '0');
-      const ampm = hours >= 12 ? 'PM' : 'AM';
-      hours = hours % 12;
-      hours = hours ? hours : 12; // the hour '0' should be '12'
-      
-      return `${month} ${day}, ${year} ${hours}:${minutes} ${ampm}`;
+      return formatDate(new Date(seconds * 1000));
+    } catch {
+      return '';
+    }
+  };
+
+  const formatDate = (date: Date): string => {
+    if (isNaN(date.getTime())) return '';
+    const months = ['Jan', 'Feb', 'Mar', 'Apr', 'May', 'Jun', 'Jul', 'Aug', 'Sep', 'Oct', 'Nov', 'Dec'];
+    const month = months[date.getMonth()];
+    const day = date.getDate();
+    const year = date.getFullYear();
+    let hours = date.getHours();
+    const minutes = date.getMinutes().toString().padStart(2, '0');
+    const ampm = hours >= 12 ? 'PM' : 'AM';
+    hours = hours % 12 || 12;
+    return `${month} ${day}, ${year} ${hours}:${minutes} ${ampm}`;
+  };
+
+  const formatLastAppOpened = (value: any): string => {
+    if (!value) return 'Never';
+    try {
+      // Handle Firestore Timestamp object
+      if (value && typeof value === 'object' && '_seconds' in value) {
+        return formatTimestamp(value._seconds);
+      }
+      // Handle Firestore Timestamp with toDate()
+      if (value && typeof value.toDate === 'function') {
+        return formatDate(value.toDate());
+      }
+      // Handle ISO string
+      const date = new Date(value);
+      if (!isNaN(date.getTime())) return formatDate(date);
+      return 'Never';
     } catch (e) {
-      return dateStr;
+      return 'Never';
     }
   };
 
@@ -199,32 +234,34 @@ export default function AdminMembers() {
 
         {/* Member Cards List */}
         <View style={styles.membersList}>
-          {filteredMembers.map((member) => {
-            const isExpanded = expandedId === member.Id;
-            const associated = member.AccountId
-              ? members.filter(m => m.AccountId === member.AccountId && m.Id !== member.Id)
+          {filteredMembers.map((member, index) => {
+            const memberId = member.Id || member.id || `member-${index}`;
+            const isExpanded = expandedId === memberId;
+            const accountId = member.AccountId || member.accountId;
+            const associated = accountId
+              ? members.filter(m => (m.AccountId || m.accountId) === accountId && (m.Id || m.id) !== memberId)
               : [];
-            const isActive = member.Account?.Active__c === true;
+            const isActive = member.Account?.Active__c === true || member.userType === 'Admin';
 
             return (
               <View 
-                key={member.Id} 
+                key={memberId} 
                 style={[styles.memberCard, isExpanded && styles.memberCardExpanded]}
               >
                 <TouchableOpacity 
                   style={styles.cardHeader} 
                   activeOpacity={0.7}
-                  onPress={() => handleToggleExpand(member.Id)}
+                  onPress={() => handleToggleExpand(memberId)}
                 >
                   <View style={styles.profileSection}>
                     <View style={styles.avatar}>
-                      <Text style={styles.avatarTxt}>{getInitials(member.Name)}</Text>
+                      <Text style={styles.avatarTxt}>{getInitials(safeText(member.Name || member.name))}</Text>
                     </View>
                     <View style={styles.nameSection}>
-                      <Text style={styles.name}>{member.Name}</Text>
+                      <Text style={styles.name}>{safeText(member.Name || member.name) || 'Unknown'}</Text>
                       <View style={badgeRowStyles(isActive).badgeRow}>
                         <View style={styles.roleBadge}>
-                          <Text style={styles.roleTxt}>{member.User_Type__c || 'Member'}</Text>
+                          <Text style={styles.roleTxt}>{safeText(member.User_Type__c || member.userType || member.role) || 'Member'}</Text>
                         </View>
                         <View style={[
                           styles.statusBadge, 
@@ -247,11 +284,11 @@ export default function AdminMembers() {
                 <View style={styles.contactDetails}>
                   <View style={styles.contactRow}>
                     <Phone size={12} color="#6B7280" />
-                    <Text style={styles.contactTxt}>{member.Phone || member.MobilePhone || 'No Phone'}</Text>
+                    <Text style={styles.contactTxt}>{safeText(member.Phone || member.MobilePhone || member.phone) || 'No Phone'}</Text>
                   </View>
                   <View style={styles.contactRow}>
                     <Mail size={12} color="#6B7280" />
-                    <Text style={styles.contactTxt}>{member.Email || 'No Email'}</Text>
+                    <Text style={styles.contactTxt}>{safeText(member.Email || member.email) || 'No Email'}</Text>
                   </View>
                 </View>
 
@@ -265,7 +302,7 @@ export default function AdminMembers() {
                           <Clock size={12} color="#c0392b" />
                           <Text style={styles.subStatLabel}>Last App Opened</Text>
                         </View>
-                        <Text style={styles.subStatValue}>{formatLastAppOpened(member.Last_App_Opened__c)}</Text>
+                        <Text style={styles.subStatValue}>{formatLastAppOpened(member.Last_App_Opened__c || member.lastAppOpened)}</Text>
                       </View>
                       <View style={styles.subStatBox}>
                         <View style={styles.subStatLabelRow}>
@@ -280,19 +317,19 @@ export default function AdminMembers() {
 
                     {/* Household Members breakdown */}
                     <Text style={styles.householdHeader}>
-                      Household: {member.Account?.Name || 'No Household Group'}
+                      Household: {safeText(member.Account?.Name || member.cellGroup) || 'No Household Group'}
                     </Text>
 
                     <View style={styles.householdList}>
                       {associated.length > 0 ? (
-                        associated.map((assoc) => (
-                          <View key={assoc.Id} style={styles.householdItem}>
+                        associated.map((assoc, assocIndex) => (
+                          <View key={assoc.Id || assoc.id || `assoc-${assocIndex}`} style={styles.householdItem}>
                             <View style={styles.hiLeft}>
-                              <Text style={styles.hiName}>{assoc.Name}</Text>
-                              <Text style={styles.hiEmail}>{assoc.Email || assoc.Phone || assoc.MobilePhone || 'No contact details'}</Text>
+                              <Text style={styles.hiName}>{safeText(assoc.Name || assoc.name)}</Text>
+                              <Text style={styles.hiEmail}>{safeText(assoc.Email || assoc.email || assoc.Phone || assoc.phone || assoc.MobilePhone) || 'No contact details'}</Text>
                             </View>
                             <View style={styles.hiRight}>
-                              <Text style={styles.hiRelation}>{assoc.Title || assoc.User_Type__c || 'Member'}</Text>
+                              <Text style={styles.hiRelation}>{safeText(assoc.Title || assoc.User_Type__c || assoc.userType || assoc.role) || 'Member'}</Text>
                             </View>
                           </View>
                         ))

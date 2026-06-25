@@ -16,7 +16,7 @@ import {
 import { firestore, FieldValue } from '../../services/firebaseConfig';
 import AsyncStorage from '@react-native-async-storage/async-storage';
 import { useAuth } from '../../context/AuthContext';
-import { User, Globe, MapPin, ArrowRight, ShieldCheck } from 'lucide-react-native';
+import { User, Globe, MapPin, ArrowRight, ShieldCheck, Calendar as CalendarIcon } from 'lucide-react-native';
 
 const { width } = Dimensions.get('window');
 
@@ -24,6 +24,7 @@ export default function OnboardingScreen() {
   const { user } = useAuth();
   const [fullName, setFullName] = useState('');
   const [cellGroup, setCellGroup] = useState('');
+  const [dob, setDob] = useState('');
   const [language, setLanguage] = useState<'English' | 'Telugu'>('English');
   const [loading, setLoading] = useState(false);
 
@@ -41,6 +42,7 @@ export default function OnboardingScreen() {
       await firestore().collection('users').doc(user.uid).set({
         name: fullName,
         phone: user.phoneNumber || 'Guest',
+        dob,
         cellGroup,
         language,
         onboardingComplete: true,
@@ -100,6 +102,20 @@ export default function OnboardingScreen() {
                   placeholder="e.g. John Doe"
                   value={fullName}
                   onChangeText={setFullName}
+                  placeholderTextColor="#9CA3AF"
+                />
+              </View>
+            </View>
+
+            <View style={styles.inputGroup}>
+              <Text style={styles.label}>DATE OF BIRTH</Text>
+              <View style={styles.inputBox}>
+                <CalendarIcon size={18} color="#9CA3AF" />
+                <TextInput
+                  style={styles.input}
+                  placeholder="YYYY-MM-DD"
+                  value={dob}
+                  onChangeText={setDob}
                   placeholderTextColor="#9CA3AF"
                 />
               </View>

@@ -133,9 +133,32 @@ class FirestoreService {
 
   async getMemberProfile(uid: string): Promise<AppMember | null> {
     try {
+      let memberData: any = null;
+      let memberId = uid;
+
+      // 1. Get from users collection first
+      const userDoc = await firestore().collection('users').doc(uid).get();
+      const userExists = typeof userDoc.exists === 'function' ? userDoc.exists() : userDoc.exists;
+      if (userExists) {
+        memberData = userDoc.data();
+      }
+
+      // 2. Check member_profiles by doc id
       const docSnap = await firestore().collection('member_profiles').doc(uid).get();
-      if (docSnap.exists()) {
-        return { id: docSnap.id, ...docSnap.data() } as AppMember;
+      const profileExists = typeof docSnap.exists === 'function' ? docSnap.exists() : docSnap.exists;
+      if (profileExists) {
+        memberData = { ...memberData, ...docSnap.data() };
+      } else {
+        // 3. Check member_profiles by uid field (for synced contacts)
+        const querySnap = await firestore().collection('member_profiles').where('uid', '==', uid).limit(1).get();
+        if (!querySnap.empty) {
+          memberData = { ...memberData, ...querySnap.docs[0].data() };
+          memberId = querySnap.docs[0].id;
+        }
+      }
+
+      if (memberData) {
+        return { id: memberId, ...memberData } as AppMember;
       }
       return null;
     } catch (error) {
@@ -145,17 +168,42 @@ class FirestoreService {
   }
 
   async checkContactExists(phone: string, uid?: string): Promise<any> {
-    // Stub for now. We will replace this with Firestore query based on phone.
     const rawDigits = phone.replace(/\D/g, '');
     const last10 = rawDigits.slice(-10);
+    const withCode = `+91${last10}`;
+    
     try {
-      const snapshot = await firestore().collection('member_profiles').where('phone', '==', last10).limit(1).get();
-      if (!snapshot.empty) {
-        const doc = snapshot.docs[0];
-        return { exists: true, member: { id: doc.id, ...doc.data() } };
+      // 1. Check users collection first (handles admins and already onboarded users)
+      const userSnap1 = await firestore().collection('users').where('phone', '==', last10).limit(1).get();
+      const userSnap2 = await firestore().collection('users').where('phone', '==', withCode).limit(1).get();
+      
+      if (!userSnap1.empty) {
+        return { exists: true, member: { id: userSnap1.docs[0].id, ...userSnap1.docs[0].data() } };
       }
+      if (!userSnap2.empty) {
+        return { exists: true, member: { id: userSnap2.docs[0].id, ...userSnap2.docs[0].data() } };
+      }
+
+      // 2. Fallback to member_profiles (for newly synced Salesforce contacts)
+      const profileSnap1 = await firestore().collection('member_profiles').where('phone', '==', last10).limit(1).get();
+      const profileSnap2 = await firestore().collection('member_profiles').where('phone', '==', withCode).limit(1).get();
+      
+      if (!profileSnap1.empty) {
+        return { exists: true, member: { id: profileSnap1.docs[0].id, ...profileSnap1.docs[0].data() } };
+      }
+      if (!profileSnap2.empty) {
+        return { exists: true, member: { id: profileSnap2.docs[0].id, ...profileSnap2.docs[0].data() } };
+      }
+
+      // 3. Check MobilePhone field just in case
+      const mobileSnap1 = await firestore().collection('member_profiles').where('MobilePhone', '==', last10).limit(1).get();
+      if (!mobileSnap1.empty) {
+        return { exists: true, member: { id: mobileSnap1.docs[0].id, ...mobileSnap1.docs[0].data() } };
+      }
+
       return { exists: false };
     } catch (error) {
+      console.error('Error in checkContactExists:', error);
       return { exists: false };
     }
   }
@@ -390,24 +438,265 @@ class FirestoreService {
   async getNotificationPrefs(userId: string) {
     try {
       const docSnap = await firestore().collection('member_profiles').doc(userId).get();
-      if (docSnap.exists()) {
+      const exists = typeof docSnap.exists === 'function' ? docSnap.exists() : docSnap.exists;
+      if (exists) {
         return docSnap.data()?.notifications || null;
       }
       return null;
-    } catch (error) {
+    } catch (e) {
       return null;
     }
   }
 
-  async saveNotificationPrefs(userId: string, prefs: any) {
+  async updateNotificationPrefs(userId: string, prefs: any) {
     try {
       await firestore().collection('member_profiles').doc(userId).set({
-        notifications: prefs,
-        updatedAt: FieldValue.serverTimestamp()
+        notifications: prefs
       }, { merge: true });
       return true;
+    } catch (e) {
+      throw e;
+    }
+  }
+
+  // --- 👑 Admin Functions ---
+
+  async getAdminMembers(): Promise<any[]> {
+    try {
+      const snapshot = await firestore().collection('member_profiles').get();
+      return snapshot.docs.map(doc => ({ id: doc.id, ...doc.data() }));
+    } catch (e) {
+      return [];
+    }
+  }
+
+  async getAdminPromises(): Promise<any[]> {
+    try {
+      const col = await this.getCollection('dailyPromises');
+      const snapshot = await col.orderBy('date', 'desc').get();
+      return snapshot.docs.map(doc => ({ id: doc.id, ...doc.data() }));
+    } catch (e) {
+      return [];
+    }
+  }
+
+  async getCalendarData(): Promise<any[]> {
+    try {
+      const col = await this.getCollection('dailyPromises');
+      const snapshot = await col.get();
+      return snapshot.docs.map(doc => ({ id: doc.id, ...doc.data() }));
+    } catch (e) {
+      return [];
+    }
+  }
+
+  async getEvents(): Promise<any[]> {
+    try {
+      const col = await this.getCollection('events');
+      const snapshot = await col.get();
+      return snapshot.docs.map(doc => ({ id: doc.id, ...doc.data() }));
+    } catch (e) {
+      return [];
+    }
+  }
+
+  async getDashboardStats(): Promise<any> {
+    try {
+      const [membersSnap, eventsCol, prayerCol, promisesCol] = await Promise.all([
+        firestore().collection('member_profiles').get(),
+        this.getCollection('events'),
+        this.getCollection('prayerRequests'),
+        this.getCollection('dailyPromises'),
+      ]);
+      const [eventsSnap, prayerSnap, promisesSnap] = await Promise.all([
+        eventsCol.get(),
+        prayerCol.get(),
+        promisesCol.get(),
+      ]);
+      return {
+        totalMembers: membersSnap.size,
+        totalEvents: eventsSnap.size,
+        totalPrayers: prayerSnap.size,
+        totalPromises: promisesSnap.size,
+      };
+    } catch (e) {
+      return { totalMembers: 0, totalEvents: 0, totalPrayers: 0, totalPromises: 0 };
+    }
+  }
+
+  // --- 🎂 Celebrations Backend ---
+
+  async getTodayBirthdays(): Promise<any[]> {
+    try {
+      const today = new Date();
+      const mm = String(today.getMonth() + 1).padStart(2, '0');
+      const dd = String(today.getDate()).padStart(2, '0');
+      
+      const [profilesSnap, usersSnap] = await Promise.all([
+        firestore().collection('member_profiles').get(),
+        firestore().collection('users').get()
+      ]);
+
+      const allDocs = [...profilesSnap.docs, ...usersSnap.docs];
+      
+      return allDocs
+        .map(doc => ({ id: doc.id, ...doc.data() }))
+        .filter((m: any) => {
+          const birthDateStr = m.Birthdate || m.dob;
+          if (!birthDateStr) return false;
+          const parts = birthDateStr.split('-');
+          return parts[1] === mm && parts[2] === dd;
+        })
+        .filter((v, i, a) => a.findIndex(t => (t.phone === v.phone)) === i);
     } catch (error) {
+      return [];
+    }
+  }
+
+  async getTodayAnniversaries(): Promise<any[]> {
+    try {
+      const today = new Date();
+      const mm = String(today.getMonth() + 1).padStart(2, '0');
+      const dd = String(today.getDate()).padStart(2, '0');
+      
+      const [profilesSnap, usersSnap] = await Promise.all([
+        firestore().collection('member_profiles').get(),
+        firestore().collection('users').get()
+      ]);
+
+      const allDocs = [...profilesSnap.docs, ...usersSnap.docs];
+      
+      return allDocs
+        .map(doc => ({ id: doc.id, ...doc.data() }))
+        .filter((m: any) => {
+          const annivStr = m.Anniversary_Date__c || m.anniversaryDate;
+          if (!annivStr) return false;
+          const parts = annivStr.split('-');
+          return parts[1] === mm && parts[2] === dd;
+        })
+        .filter((v, i, a) => a.findIndex(t => (t.phone === v.phone)) === i);
+    } catch (error) {
+      return [];
+    }
+  }
+
+  async getAllCelebrations(): Promise<any[]> {
+    try {
+      const today = new Date();
+      const mm = String(today.getMonth() + 1).padStart(2, '0');
+      const dd = String(today.getDate()).padStart(2, '0');
+      
+      const [profilesSnap, usersSnap] = await Promise.all([
+        firestore().collection('member_profiles').get(),
+        firestore().collection('users').get()
+      ]);
+
+      const allDocs = [...profilesSnap.docs, ...usersSnap.docs];
+      
+      return allDocs
+        .map(doc => ({ id: doc.id, ...doc.data() }))
+        .filter((m: any) => {
+          const birthDateStr = m.Birthdate || m.dob;
+          const annivStr = m.Anniversary_Date__c || m.anniversaryDate;
+          
+          let hasBday = false;
+          let hasAnniv = false;
+          
+          if (birthDateStr) {
+            const bParts = birthDateStr.split('-');
+            if (bParts[1] === mm && bParts[2] === dd) hasBday = true;
+          }
+          
+          if (annivStr) {
+            const aParts = annivStr.split('-');
+            if (aParts[1] === mm && aParts[2] === dd) hasAnniv = true;
+          }
+          
+          return hasBday || hasAnniv;
+        })
+        .filter((v, i, a) => a.findIndex(t => (t.phone === v.phone)) === i);
+    } catch (error) {
+      return [];
+    }
+  }
+
+  // --- 🔔 Broadcast ---
+
+  async createNotificationBroadcast(data: any): Promise<string> {
+    try {
+      const docRef = await firestore().collection('broadcasts').add({
+        ...data,
+        createdAt: firestore.FieldValue.serverTimestamp()
+      });
+      return docRef.id;
+    } catch (error) {
+      throw error;
+    }
+  }
+
+  async sendPersonalGreeting(contactId: string, phone: string, title: string, body: string, type: string): Promise<boolean> {
+    try {
+      await firestore().collection('broadcasts').add({
+        title,
+        body,
+        type: `personal_${type}`, // personal_birthday or personal_anniversary
+        targetType: 'specific',
+        targetPhones: [phone], // targets specifically this phone number
+        createdAt: firestore.FieldValue.serverTimestamp()
+      });
+      return true;
+    } catch (error) {
+      console.error('Error sending personal greeting:', error);
       return false;
+    }
+  }
+
+  async markAsAnswered(id: string): Promise<void> {
+    try {
+      const col = await this.getCollection('prayerRequests');
+      await col.doc(id).update({ isAnswered: true, answeredAt: firestore.FieldValue.serverTimestamp() });
+    } catch (error) {
+      throw error;
+    }
+  }
+
+  // --- 🗓️ Pastor Events ---
+
+  async getPastorEvents(): Promise<any[]> {
+    try {
+      const col = await this.getCollection('pastorEvents');
+      const snapshot = await col.orderBy('date', 'asc').get();
+      return snapshot.docs.map(doc => ({ id: doc.id, ...doc.data() }));
+    } catch (error) {
+      return [];
+    }
+  }
+
+  async createPastorEvent(data: any): Promise<string> {
+    try {
+      const col = await this.getCollection('pastorEvents');
+      const docRef = await col.add({ ...data, createdAt: firestore.FieldValue.serverTimestamp() });
+      return docRef.id;
+    } catch (error) {
+      throw error;
+    }
+  }
+
+  async updatePastorEvent(id: string, data: any): Promise<void> {
+    try {
+      const col = await this.getCollection('pastorEvents');
+      await col.doc(id).update({ ...data, updatedAt: firestore.FieldValue.serverTimestamp() });
+    } catch (error) {
+      throw error;
+    }
+  }
+
+  async deletePastorEvent(id: string): Promise<void> {
+    try {
+      const col = await this.getCollection('pastorEvents');
+      await col.doc(id).delete();
+    } catch (error) {
+      throw error;
     }
   }
 }

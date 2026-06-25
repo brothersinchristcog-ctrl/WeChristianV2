@@ -33,5 +33,11 @@ jobs:
         run: npm run build
         working-directory: functions
 
+      - name: Create .env file for Firebase Functions
+        run: |
+          echo "WA_ACCESS_TOKEN=${{ secrets.WA_ACCESS_TOKEN }}" > .env
+          echo "WA_PHONE_ID=${{ secrets.WA_PHONE_ID }}" >> .env
+        working-directory: functions
+
       - name: Deploy Functions to Firebase
         run: firebase deploy --only functions --project wechristian-67f07 --token "${{ secrets.FIREBASE_TOKEN }}"

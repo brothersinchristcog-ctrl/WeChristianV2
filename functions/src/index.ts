@@ -727,3 +727,6 @@ export const triggerTestYouTubeLive = onCall({ invoker: 'public' }, async (reque
 
 // Export PhonePe Integration
 export { initiatePhonePePayment, phonepeWebhook } from './phonepe.js';
+
+// Export WhatsApp Integration
+export * from './whatsapp.js';

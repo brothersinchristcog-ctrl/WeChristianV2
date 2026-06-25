@@ -85,7 +85,7 @@ function TabNavigator() {
   const { user, signOut, member, viewMode, setViewMode } = useAuth();
   const insets = useSafeAreaInsets();
   const isGuest = user?.isAnonymous;
-  const isActualAdmin = member?.userType?.toLowerCase() === 'admin';
+  const isActualAdmin = member?.userType?.toLowerCase() === 'admin' || member?.role?.toLowerCase() === 'admin';
 
   const handleGuestInteraction = (e: any) => {
     if (isGuest) {
@@ -211,7 +211,7 @@ function Navigation() {
   const [isLocked, setIsLocked] = useState(false);
   const appState = React.useRef(AppState.currentState);
 
-  const isAdmin = member?.userType?.toLowerCase() === 'admin';
+  const isAdmin = member?.userType?.toLowerCase() === 'admin' || member?.role?.toLowerCase() === 'admin';
   // Show admin UI only when userType is admin AND viewMode is admin
   const showAdminView = isAdmin && viewMode === 'admin';
   const navigationKey = showAdminView ? 'admin-root' : 'member-root';
@@ -307,7 +307,7 @@ function Navigation() {
                   await firestore().collection('users').doc(user.uid).set({
                     name: result.member?.name || '',
                     phone: phoneClean,
-                    role: 'Member',
+                    role: result.member?.userType || result.member?.role || 'Member',
                     onboardingComplete: true
                   }, { merge: true });
                   console.log('🩹 [Self-Healing] Firestore user profile successfully repaired!');

@@ -15,6 +15,7 @@ import {
 import { Gift, Heart, Send, Calendar, CheckCircle2, Search } from 'lucide-react-native';
 import FirestoreService from '../../services/FirestoreService';
 import Theme from '../../theme/Theme';
+import { openWhatsApp } from '../../utils/whatsapp';
 
 export default function AdminCelebrations() {
   const [loading, setLoading] = useState(true);
@@ -54,15 +55,16 @@ export default function AdminCelebrations() {
 
       data.forEach(rec => {
         // Handle Birthdays
-        if (rec.Birthdate) {
+        const birthDate = rec.Birthdate || rec.dob;
+        if (birthDate) {
           parsed.push({
-            id: `bday-${rec.Id}`,
-            contactId: rec.Id,
+            id: `bday-${rec.Id || rec.id || Math.random()}`,
+            contactId: rec.Id || rec.id,
             type: 'birthday',
-            name: rec.Name,
-            phone: rec.Phone || rec.MobilePhone,
-            date: rec.Birthdate,
-            years: calculateYears(rec.Birthdate)
+            name: rec.Name || rec.name,
+            phone: rec.Phone || rec.MobilePhone || rec.phone,
+            date: birthDate,
+            years: calculateYears(birthDate)
           });
         }
       });
@@ -70,26 +72,27 @@ export default function AdminCelebrations() {
       // Handle Anniversaries (group by AccountId)
       const accountGroups: { [accountId: string]: any[] } = {};
       data.forEach(rec => {
-        if (rec.Anniversary_Date__c) {
-          const accId = rec.AccountId || rec.Id;
+        const annivDate = rec.Anniversary_Date__c || rec.anniversaryDate;
+        if (annivDate) {
+          const accId = rec.AccountId || rec.accountId || rec.Id || rec.id;
           if (!accountGroups[accId]) accountGroups[accId] = [];
-          accountGroups[accId].push(rec);
+          accountGroups[accId].push({ ...rec, resolvedAnniv: annivDate });
         }
       });
 
       Object.values(accountGroups).forEach(group => {
         if (group.length > 0) {
-          const husband = group.find(m => m.Gender__c === 'Male') || group[0];
-          const wife = group.find(m => m.Gender__c === 'Female') || group[1] || group[0];
+          const husband = group.find(m => m.Gender__c === 'Male' || m.gender === 'Male') || group[0];
+          const wife = group.find(m => m.Gender__c === 'Female' || m.gender === 'Female') || group[1] || group[0];
           
           parsed.push({
-            id: `anniv-${husband.Id}`,
-            contactId: husband.Id,
+            id: `anniv-${husband.Id || husband.id || Math.random()}`,
+            contactId: husband.Id || husband.id,
             type: 'anniversary',
-            name: `${husband.Name} & ${wife.Name}`,
-            phone: husband.Phone || husband.MobilePhone || wife.Phone || wife.MobilePhone,
-            date: husband.Anniversary_Date__c,
-            years: calculateYears(husband.Anniversary_Date__c)
+            name: group.length > 1 ? `${husband.Name || husband.name} & ${wife.Name || wife.name}` : (husband.Name || husband.name),
+            phone: husband.Phone || husband.MobilePhone || husband.phone || wife.Phone || wife.MobilePhone || wife.phone,
+            date: husband.resolvedAnniv,
+            years: calculateYears(husband.resolvedAnniv)
           });
         }
       });
@@ -141,17 +144,31 @@ export default function AdminCelebrations() {
     });
   };
 
+  // Format phone to international format for WhatsApp
+  const formatPhoneForWhatsApp = (phone: string): string => {
+    if (!phone) return '';
+    const digits = phone.replace(/\D/g, '');
+    // If it's a 10-digit Indian number, add +91
+    if (digits.length === 10) return `+91${digits}`;
+    // If it already has country code (12 digits starting with 91)
+    if (digits.length === 12 && digits.startsWith('91')) return `+${digits}`;
+    // If it starts with +, use as-is
+    if (phone.startsWith('+')) return phone;
+    return `+${digits}`;
+  };
+
   const handleSendGreeting = (item: any) => {
     if (!item.phone) {
-      Alert.alert('Missing Phone', 'This member does not have a Phone or MobilePhone on file in Salesforce. Cannot send personalized push notification.');
+      Alert.alert('Missing Phone', 'This member does not have a Phone or MobilePhone on file. Cannot send WhatsApp greeting.');
       return;
     }
 
+    const firstName = item.name.split(' ')[0];
     setSelectedItem(item);
-    setMessageTitle(item.type === 'birthday' ? `🎂 Happy Birthday, ${item.name.split(' ')[0]}!` : `💐 Happy Anniversary!`);
+    setMessageTitle(item.type === 'birthday' ? `🎂 Happy Birthday, ${firstName}!` : `💐 Happy Anniversary!`);
     setMessageText(item.type === 'birthday' 
-      ? 'Wishing you a very Happy Birthday! May God bless you abundantly today. 🎂🙏' 
-      : 'Wishing you a wonderful wedding anniversary! May God bless your home with love and joy. 💒💐'
+      ? `Dear ${firstName}, wishing you a very Happy Birthday! May God bless you abundantly and fulfill all your prayers today. 🎂🙏\n\n— Brothers in Christ Fellowship` 
+      : `Dear ${item.name}, wishing you a wonderful Wedding Anniversary! May God bless your home with love, joy, and peace. 💒💐\n\n— Brothers in Christ Fellowship`
     );
     setModalVisible(true);
   };
@@ -173,8 +190,11 @@ export default function AdminCelebrations() {
         selectedItem.type
       );
       if (success) {
-        Alert.alert('Success', `Greeting sent to ${selectedItem.name}!`);
         setModalVisible(false);
+        Alert.alert(
+          '✅ Greeting Sent!', 
+          `Push notification and WhatsApp message delivered automatically in the background to ${selectedItem.name}.`
+        );
       } else {
         Alert.alert('Error', 'Failed to send greeting.');
       }

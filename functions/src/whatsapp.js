@@ -1,0 +1,65 @@
+import { onDocumentCreated } from 'firebase-functions/v2/firestore';
+import { defineSecret } from 'firebase-functions/params';
+const waAccessToken = defineSecret('WA_ACCESS_TOKEN');
+const waPhoneId = defineSecret('WA_PHONE_ID');
+export const onPersonalGreetingCreated = onDocumentCreated({
+    document: 'broadcasts/{docId}',
+    secrets: [waAccessToken, waPhoneId]
+}, async (event) => {
+    const snapshot = event.data;
+    if (!snapshot)
+        return;
+    const data = snapshot.data();
+    // We only process personal greetings targeted to a specific phone
+    if (!['personal_birthday', 'personal_anniversary'].includes(data.type)) {
+        return;
+    }
+    if (!data.targetPhones || data.targetPhones.length === 0) {
+        console.log('Skipping WhatsApp message: No target phones specified');
+        return;
+    }
+    const token = waAccessToken.value();
+    const phoneId = waPhoneId.value();
+    if (!token || !phoneId) {
+        console.error('Missing WA_ACCESS_TOKEN or WA_PHONE_ID. Cannot send WhatsApp message.');
+        return;
+    }
+    for (const rawPhone of data.targetPhones) {
+        // Format phone: must not have +, must only have digits. e.g. 919398501975
+        let toPhone = rawPhone.replace(/\D/g, '');
+        if (toPhone.length === 10) {
+            toPhone = `91${toPhone}`;
+        }
+        console.log(`Sending WhatsApp message to ${toPhone}`);
+        try {
+            const response = await fetch(`https://graph.facebook.com/v17.0/${phoneId}/messages`, {
+                method: 'POST',
+                headers: {
+                    'Authorization': `Bearer ${token}`,
+                    'Content-Type': 'application/json',
+                },
+                body: JSON.stringify({
+                    messaging_product: 'whatsapp',
+                    recipient_type: 'individual',
+                    to: toPhone,
+                    type: 'text',
+                    text: {
+                        preview_url: false,
+                        body: data.body
+                    }
+                })
+            });
+            const result = await response.json();
+            if (!response.ok) {
+                console.error(`Meta API Error for ${toPhone}:`, JSON.stringify(result));
+            }
+            else {
+                console.log(`Successfully sent WhatsApp to ${toPhone}. Message ID: ${result.messages?.[0]?.id}`);
+            }
+        }
+        catch (error) {
+            console.error(`Network Error sending WhatsApp to ${toPhone}:`, error);
+        }
+    }
+});
+//# sourceMappingURL=whatsapp.js.map
