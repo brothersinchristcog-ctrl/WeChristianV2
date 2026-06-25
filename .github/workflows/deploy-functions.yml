@@ -22,8 +22,7 @@ jobs:
         with:
           node-version: '22'
 
-      - name: Install Firebase Tools
-        run: npm install -g firebase-tools
+
 
       - name: Install Functions Dependencies
         run: npm install
@@ -39,10 +38,9 @@ jobs:
           echo "WA_PHONE_ID=${{ secrets.WA_PHONE_ID }}" >> .env
         working-directory: functions
 
-      - name: Authenticate to Google Cloud
-        uses: google-github-actions/auth@v2
-        with:
-          credentials_json: '${{ secrets.GCP_SA_KEY }}'
-
       - name: Deploy Functions to Firebase
-        run: firebase deploy --only functions --project wechristian-67f07 --non-interactive
+        uses: w9jds/firebase-action@master
+        with:
+          args: deploy --only functions --project wechristian-67f07
+        env:
+          GCP_SA_KEY: ${{ secrets.GCP_SA_KEY }}
