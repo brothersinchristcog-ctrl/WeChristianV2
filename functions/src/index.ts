@@ -6,8 +6,6 @@ import { getFirestore, FieldValue } from 'firebase-admin/firestore';
 import { getMessaging } from 'firebase-admin/messaging';
 import { getStorage } from 'firebase-admin/storage';
 import { SalesforceBackend } from './services/SalesforceBackend.js';
-
-
 // Initialize Firebase Admin once at top level
 initializeApp();
 
@@ -730,7 +728,6 @@ export { initiatePhonePePayment, phonepeWebhook } from './phonepe.js';
 
 // Export WhatsApp Integration
 export * from './whatsapp.js';
-// Trigger deployment
+// Trigger ment
 //
-Force
-deploy
+
