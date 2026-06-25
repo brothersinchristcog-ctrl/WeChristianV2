@@ -267,7 +267,8 @@ export const automatedDailyBirthdays = onSchedule({ schedule: '0 6 * * *', timeZ
         title: `🎂 Happy Birthday, ${member.name}!`,
         content: personalGreeting,
         date: dateStr,
-        type: 'birthday',
+        type: 'personal_birthday',
+        targetPhones: member.phone ? [member.phone] : [],
         silent: true,
         createdAt: FieldValue.serverTimestamp()
       });
@@ -359,7 +360,8 @@ export const automatedDailyAnniversaries = onSchedule({ schedule: '30 6 * * *', 
         title: `💐 Happy Wedding Anniversary!`,
         content: personalGreeting,
         date: dateStr,
-        type: 'anniversary',
+        type: 'personal_anniversary',
+        targetPhones: [ann.husbandPhone, ann.wifePhone].filter(Boolean),
         silent: true,
         createdAt: FieldValue.serverTimestamp()
       });
