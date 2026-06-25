@@ -415,7 +415,7 @@ import { onDocumentCreated } from 'firebase-functions/v2/firestore';
  * 📣 ON BROADCAST CREATED TRIGGER (Gen 2)
  * Automatically sends push notifications when a new broadcast is added to Firestore (e.g. Emergency Meeting or custom admin updates)
  */
-export const onBroadcastCreated = onDocumentCreated(
+export const onBroadcastCreatedV2 = onDocumentCreated(
   {
     document: 'broadcasts/{broadcastId}',
     region: 'asia-south1'
