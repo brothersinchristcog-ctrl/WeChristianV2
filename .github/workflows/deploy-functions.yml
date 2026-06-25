@@ -46,6 +46,11 @@ jobs:
           credentials_json: '${{ secrets.GCP_SA_KEY }}'
           create_credentials_file: true
 
+      - name: Debug Auth
+        run: |
+          echo "Credentials file path: ${{ steps.auth.outputs.credentials_file_path }}"
+          ls -l ${{ steps.auth.outputs.credentials_file_path }}
+
       - name: Deploy Functions to Firebase
         run: firebase deploy --only functions --project wechristian-67f07 --non-interactive
         env:
