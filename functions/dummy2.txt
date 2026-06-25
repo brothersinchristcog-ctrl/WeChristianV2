@@ -1,1 +1,1 @@
-deploy5
+deploy_wa_test
