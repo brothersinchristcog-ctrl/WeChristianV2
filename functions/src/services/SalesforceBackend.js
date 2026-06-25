@@ -139,7 +139,7 @@ export class SalesforceBackend {
      */
     async getTodayAnniversaries() {
         try {
-            const soql = `SELECT Id, Name, Gender__c, AccountId, Anniversary_Date__c FROM Contact WHERE Anniversary_Date__c != null`;
+            const soql = `SELECT Id, Name, Gender__c, AccountId, Anniversary_Date__c, Phone FROM Contact WHERE Anniversary_Date__c != null`;
             const result = await this.query(soql).catch(() => ({ records: [] }));
             const today = new Date();
             const todayMonth = today.getMonth() + 1; // 1-12
@@ -164,6 +164,7 @@ export class SalesforceBackend {
                     accountGroups[accId].push({
                         name: rec.Name,
                         gender: rec.Gender__c,
+                        phone: rec.Phone,
                         year: annYear
                     });
                 }
@@ -176,12 +177,16 @@ export class SalesforceBackend {
                     continue;
                 let husband = '';
                 let wife = '';
+                let husbandPhone = '';
+                let wifePhone = '';
                 let years = 12;
                 const male = members.find(m => m.gender === 'Male');
                 const female = members.find(m => m.gender === 'Female');
                 if (male && female) {
                     husband = male.name;
                     wife = female.name;
+                    husbandPhone = male.phone || '';
+                    wifePhone = female.phone || '';
                     years = new Date().getFullYear() - male.year;
                 }
                 else if (members.length >= 2) {
@@ -192,10 +197,14 @@ export class SalesforceBackend {
                     if (firstIsFemale) {
                         wife = members[0].name;
                         husband = members[1].name;
+                        wifePhone = members[0].phone || '';
+                        husbandPhone = members[1].phone || '';
                     }
                     else {
                         husband = members[0].name;
                         wife = members[1].name;
+                        husbandPhone = members[0].phone || '';
+                        wifePhone = members[1].phone || '';
                     }
                     years = new Date().getFullYear() - members[0].year;
                 }
@@ -204,10 +213,12 @@ export class SalesforceBackend {
                     if (single.gender === 'Male') {
                         husband = single.name;
                         wife = 'Spouse';
+                        husbandPhone = single.phone || '';
                     }
                     else {
                         husband = 'Spouse';
                         wife = single.name;
+                        wifePhone = single.phone || '';
                     }
                     years = new Date().getFullYear() - single.year;
                 }
@@ -218,6 +229,8 @@ export class SalesforceBackend {
                     id: `anniv-${index++}`,
                     husband,
                     wife,
+                    husbandPhone,
+                    wifePhone,
                     years
                 });
             }

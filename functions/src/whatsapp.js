@@ -1,10 +1,6 @@
 import { onDocumentCreated } from 'firebase-functions/v2/firestore';
-import { defineSecret } from 'firebase-functions/params';
-const waAccessToken = defineSecret('WA_ACCESS_TOKEN');
-const waPhoneId = defineSecret('WA_PHONE_ID');
 export const onPersonalGreetingCreated = onDocumentCreated({
     document: 'broadcasts/{docId}',
-    secrets: [waAccessToken, waPhoneId]
 }, async (event) => {
     const snapshot = event.data;
     if (!snapshot)
@@ -18,8 +14,9 @@ export const onPersonalGreetingCreated = onDocumentCreated({
         console.log('Skipping WhatsApp message: No target phones specified');
         return;
     }
-    const token = waAccessToken.value();
-    const phoneId = waPhoneId.value();
+    // Using process.env instead of Google Cloud Secrets
+    const token = process.env.WA_ACCESS_TOKEN;
+    const phoneId = process.env.WA_PHONE_ID;
     if (!token || !phoneId) {
         console.error('Missing WA_ACCESS_TOKEN or WA_PHONE_ID. Cannot send WhatsApp message.');
         return;

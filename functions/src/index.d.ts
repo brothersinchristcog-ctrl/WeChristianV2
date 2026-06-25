@@ -1,4 +1,3 @@
-import * as functionsCompat from 'firebase-functions/v1';
 /**
  * 📖 GET DAILY PROMISE
  */
@@ -58,10 +57,12 @@ export declare const automatedDailyBirthdays: import("firebase-functions/v2/sche
  */
 export declare const automatedDailyAnniversaries: import("firebase-functions/v2/scheduler").ScheduleFunction;
 /**
- * 📣 ON BROADCAST CREATED TRIGGER (Gen 1 to bypass Eventarc permission issues)
+ * 📣 ON BROADCAST CREATED TRIGGER (Gen 2)
  * Automatically sends push notifications when a new broadcast is added to Firestore (e.g. Emergency Meeting or custom admin updates)
  */
-export declare const onBroadcastCreated: functionsCompat.CloudFunction<functionsCompat.firestore.QueryDocumentSnapshot>;
+export declare const onBroadcastCreatedV2: import("firebase-functions/core").CloudFunction<import("firebase-functions/v2/firestore").FirestoreEvent<import("firebase-functions/v2/firestore").QueryDocumentSnapshot | undefined, {
+    broadcastId: string;
+}>>;
 /**
  * 📤 UPLOAD EVENT IMAGE
  */
