@@ -39,5 +39,10 @@ jobs:
           echo "WA_PHONE_ID=${{ secrets.WA_PHONE_ID }}" >> .env
         working-directory: functions
 
+      - name: Authenticate to Google Cloud
+        uses: google-github-actions/auth@v2
+        with:
+          credentials_json: '${{ secrets.GCP_SA_KEY }}'
+
       - name: Deploy Functions to Firebase
-        run: firebase deploy --only functions --project wechristian-67f07 --token "${{ secrets.FIREBASE_TOKEN }}"
+        run: firebase deploy --only functions --project wechristian-67f07
