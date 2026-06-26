@@ -15,6 +15,9 @@ export const onPersonalGreetingCreated = onDocumentCreated(
       return;
     }
 
+    // AUTOMATED WHATSAPP DISABLED: Admin now sends custom text via manual WhatsApp deep-link.
+    return;
+
     if (!data.targetPhones || data.targetPhones.length === 0) {
       console.log('Skipping WhatsApp message: No target phones specified');
       return;

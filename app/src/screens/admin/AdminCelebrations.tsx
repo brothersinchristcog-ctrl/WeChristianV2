@@ -198,11 +198,22 @@ export default function AdminCelebrations() {
         selectedItem.type
       );
       if (success) {
+        Alert.alert('Success', 'Push notification sent! Opening WhatsApp...');
+        
+        // Open physical WhatsApp app to bypass Meta's Cloud API template restrictions
+        let waPhone = selectedItem.phone.replace(/\D/g, '');
+        if (waPhone.length === 10) waPhone = `91${waPhone}`;
+        
+        const waUrl = `whatsapp://send?phone=${waPhone}&text=${encodeURIComponent(messageText)}`;
+        Linking.canOpenURL(waUrl).then(supported => {
+          if (supported) {
+            Linking.openURL(waUrl);
+          } else {
+            Alert.alert('Error', 'WhatsApp is not installed on this device.');
+          }
+        });
+        
         setModalVisible(false);
-        Alert.alert(
-          '✅ Greeting Sent!', 
-          `Push notification and WhatsApp message delivered automatically in the background to ${selectedItem.name}.`
-        );
       } else {
         Alert.alert('Error', 'Failed to send greeting.');
       }
