@@ -377,7 +377,7 @@ export default function HomeScreen() {
     return (
       <View style={[styles.loadingContainer, { backgroundColor: '#1a2d5a' }]}>
         <ActivityIndicator size="large" color="#FCD34D" />
-        <Text style={styles.screenLoadingText}>{activeChurch?.name || 'Church of GOD'} — {activeChurch?.tagline || 'A Gateway to Heaven'}</Text>
+        <Text style={styles.screenLoadingText}>{activeChurch?.name || 'Welcome'} — {activeChurch?.tagline || 'Connect & Grow'}</Text>
       </View>
     );
   }
@@ -397,7 +397,7 @@ export default function HomeScreen() {
               />
             </View>
             <View style={styles.hdTextGroup}>
-              <Text style={styles.hdTitle}>{activeChurch?.name || 'Church of GOD'}</Text>
+              <Text style={styles.hdTitle}>{activeChurch?.name || 'Welcome'}</Text>
               <Text style={styles.hdSub}>{activeChurch?.tagline || 'kristhunandu sahodarulu sahavasmu'}</Text>
             </View>
           </View>
@@ -464,7 +464,11 @@ export default function HomeScreen() {
               style={{ borderRadius: 20 }}
             >
               {/* Slide 1 — Promise Text */}
-              <View style={[styles.phSlide, styles.phInner]}>
+              <TouchableOpacity 
+                activeOpacity={0.8}
+                style={[styles.phSlide, styles.phInner]} 
+                onPress={() => navigation.navigate('PromiseArchive')}
+              >
                 <Text style={styles.phLabel}>TODAY'S PROMISE · ఈ రోజు వాగ్దానం</Text>
                 <Text style={styles.phEn}>{promise ? `"${stripHtml(promise.verse)}"` : ''}</Text>
                 <Text style={styles.phRefEn}>{promise ? `— ${promise.verseReferenceEn || promise.verseReference}` : ''}</Text>
@@ -478,17 +482,19 @@ export default function HomeScreen() {
                   </TouchableOpacity>
                   <TouchableOpacity 
                     style={styles.phWatchBtn} 
-                    onPress={() => navigation.navigate('DailyVideo', { 
-                      youtubeId: promise?.youtubeId,
-                      videoTitle: promise?.videoTitle,
-                      pastor: promise?.pastor
-                    })}
+                    onPress={() => {
+                      navigation.navigate('DailyVideo', { 
+                        youtubeId: promise?.youtubeId,
+                        videoTitle: promise?.videoTitle,
+                        pastor: promise?.pastor
+                      });
+                    }}
                   >
                     <Play size={18} color="#fff" fill="#fff" />
                     <Text style={styles.phBtnTxt}>Watch video</Text>
                   </TouchableOpacity>
                 </View>
-              </View>
+              </TouchableOpacity>
 
               {/* Slide 2 — Thumbnail (only if image exists) */}
               {promiseThumbnail && (
@@ -566,7 +572,7 @@ export default function HomeScreen() {
                     >
                       <View style={styles.ebThumbnailContainer}>
                         <Image 
-                          source={{ uri: item.image || 'https://images.unsplash.com/photo-1438232992991-995b7058bbb3?q=80&w=400' }}
+                          source={{ uri: item.image || item.bannerUrl || 'https://images.unsplash.com/photo-1438232992991-995b7058bbb3?q=80&w=400' }}
                           style={styles.ebThumbnail}
                           resizeMode="cover"
                         />

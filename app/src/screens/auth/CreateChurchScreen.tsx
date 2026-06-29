@@ -50,7 +50,7 @@ function generateChurchCode(name: string): string {
 
 export default function CreateChurchScreen({ navigation }: Props) {
   const { setChurchId } = useChurch();
-  const { member } = useAuth();
+  const { member, setMember } = useAuth();
   const [loading, setLoading] = useState(false);
   const [form, setForm] = useState({
     name: '',
@@ -194,6 +194,21 @@ export default function CreateChurchScreen({ navigation }: Props) {
           userType: 'Admin',
           joinDate: new Date().toISOString()
         });
+
+        // Force update AuthContext so it doesn't get stuck on old cached data
+        const updatedMember = {
+          ...(member || {}),
+          id: currentUser.uid,
+          name: member?.name || currentUser.displayName || 'Admin',
+          phone: member?.phone || currentUser.phoneNumber || '',
+          churchId: docRef.id,
+          primaryChurchId: docRef.id,
+          userType: 'Admin'
+        };
+        setMember(updatedMember as any);
+        
+        const AsyncStorage = require('@react-native-async-storage/async-storage').default;
+        await AsyncStorage.setItem('@cached_member', JSON.stringify(updatedMember));
       }
 
       // Upload image if selected

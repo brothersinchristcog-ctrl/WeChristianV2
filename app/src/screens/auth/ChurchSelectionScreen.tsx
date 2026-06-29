@@ -28,11 +28,6 @@ export default function ChurchSelectionScreen({ navigation }: Props) {
   const { setChurchId } = useChurch();
   const [code, setCode] = useState('');
   const [loading, setLoading] = useState(false);
-  const [searchResults, setSearchResults] = useState<ChurchDetails[]>([]);
-  const [searchTerm, setSearchTerm] = useState('');
-  const [searchLoading, setSearchLoading] = useState(false);
-  const [tab, setTab] = useState<'code' | 'search'>('code');
-
   const handleJoinByCode = async () => {
     const trimmed = code.trim().toUpperCase();
     if (trimmed.length < 4) {
@@ -63,42 +58,6 @@ export default function ChurchSelectionScreen({ navigation }: Props) {
     }
   };
 
-  const handleSearch = async () => {
-    if (searchTerm.trim().length < 2) return;
-    setSearchLoading(true);
-    try {
-      const all = await ChurchService.getAllChurches();
-      const filtered = all.filter(c =>
-        c.name.toLowerCase().includes(searchTerm.toLowerCase())
-      );
-      setSearchResults(filtered);
-    } catch (e) {
-      setSearchResults([]);
-    } finally {
-      setSearchLoading(false);
-    }
-  };
-
-  const handleSelectChurch = async (church: ChurchDetails) => {
-    setLoading(true);
-    try {
-      // Enforce subscription tier limit
-      const guard = new SubscriptionGuard(church);
-      const check = guard.canAddMember();
-      if (!check.allowed) {
-        Alert.alert('Church Full', check.message);
-        return;
-      }
-      await setChurchId(church.id);
-      await SubscriptionGuard.incrementMemberCount(church.id);
-      navigation.replace('JoinSuccess', { churchName: church.name });
-    } catch (e) {
-      Alert.alert('Error', 'Could not join church. Please try again.');
-    } finally {
-      setLoading(false);
-    }
-  };
-
   return (
     <View style={styles.container}>
       <StatusBar barStyle="light-content" />
@@ -119,29 +78,8 @@ export default function ChurchSelectionScreen({ navigation }: Props) {
               </Text>
             </View>
 
-            {/* Tabs */}
-            <View style={styles.tabs}>
-              <TouchableOpacity
-                style={[styles.tab, tab === 'code' && styles.tabActive]}
-                onPress={() => setTab('code')}
-              >
-                <Text style={[styles.tabTxt, tab === 'code' && styles.tabTxtActive]}>
-                  Church Code
-                </Text>
-              </TouchableOpacity>
-              <TouchableOpacity
-                style={[styles.tab, tab === 'search' && styles.tabActive]}
-                onPress={() => setTab('search')}
-              >
-                <Text style={[styles.tabTxt, tab === 'search' && styles.tabTxtActive]}>
-                  Search
-                </Text>
-              </TouchableOpacity>
-            </View>
-
-            {/* Code Tab */}
-            {tab === 'code' && (
-              <View style={styles.section}>
+            {/* Code Section */}
+            <View style={styles.section}>
                 <Text style={styles.label}>ENTER CHURCH CODE</Text>
                 <Text style={styles.hint}>
                   Your church admin will provide you with a unique code (e.g. COGBLR)
@@ -170,58 +108,6 @@ export default function ChurchSelectionScreen({ navigation }: Props) {
                   )}
                 </TouchableOpacity>
               </View>
-            )}
-
-            {/* Search Tab */}
-            {tab === 'search' && (
-              <View style={styles.section}>
-                <Text style={styles.label}>SEARCH BY NAME</Text>
-                <View style={styles.searchRow}>
-                  <TextInput
-                    style={styles.searchInput}
-                    placeholder="Search church name..."
-                    placeholderTextColor="#94a3b8"
-                    value={searchTerm}
-                    onChangeText={setSearchTerm}
-                    onSubmitEditing={handleSearch}
-                    returnKeyType="search"
-                  />
-                  <TouchableOpacity style={styles.searchBtn} onPress={handleSearch}>
-                    {searchLoading ? (
-                      <ActivityIndicator color="#fff" size="small" />
-                    ) : (
-                      <Search size={20} color="#fff" />
-                    )}
-                  </TouchableOpacity>
-                </View>
-
-                {searchResults.length > 0 && (
-                  <View style={styles.resultsList}>
-                    {searchResults.map(church => (
-                      <TouchableOpacity
-                        key={church.id}
-                        style={styles.resultCard}
-                        onPress={() => handleSelectChurch(church)}
-                        disabled={loading}
-                      >
-                        <View style={[styles.resultDot, { backgroundColor: church.theme?.primaryColor || '#1a2d5a' }]} />
-                        <View style={styles.resultInfo}>
-                          <Text style={styles.resultName}>{church.name}</Text>
-                          {church.address && (
-                            <Text style={styles.resultAddr}>{church.address}</Text>
-                          )}
-                        </View>
-                        <ArrowRight size={16} color="#94a3b8" />
-                      </TouchableOpacity>
-                    ))}
-                  </View>
-                )}
-
-                {searchResults.length === 0 && searchTerm.length > 0 && !searchLoading && (
-                  <Text style={styles.noResults}>No churches found. Try a different name.</Text>
-                )}
-              </View>
-            )}
 
             {/* Create Church */}
             <View style={styles.createSection}>

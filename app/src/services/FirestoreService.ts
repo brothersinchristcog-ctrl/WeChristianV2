@@ -275,6 +275,21 @@ class FirestoreService {
       throw e;
     }
   }
+  async getAllMembers(): Promise<any[]> {
+    try {
+      const col = await this.getCollection('members');
+      const snapshot = await col.get();
+      return snapshot.docs.map((doc: any) => ({ 
+        id: doc.id, 
+        name: doc.data().name || doc.data().firstName || 'Unknown',
+        email: doc.data().email || '',
+        ...doc.data() 
+      }));
+    } catch (error) {
+      console.error('Error fetching all members:', error);
+      return [];
+    }
+  }
 
   async getAdminMembers(): Promise<any[]> {
     try {
@@ -466,7 +481,8 @@ class FirestoreService {
               date: cData.createdAt ? (cData.createdAt.toDate ? cData.createdAt.toDate().toISOString() : new Date(cData.createdAt).toISOString()) : new Date().toISOString()
             };
           });
-          return { ...item, replies };
+          const createdAtStr = item.createdAt ? (item.createdAt.toDate ? item.createdAt.toDate().toISOString() : new Date(item.createdAt).toISOString()) : new Date().toISOString();
+          return { ...item, createdAt: createdAtStr, replies };
         } catch (commentErr) {
           console.warn(`Error fetching comments for request ${item.id}:`, commentErr);
           return { ...item, replies: [] };

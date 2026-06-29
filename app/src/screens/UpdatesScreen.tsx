@@ -158,6 +158,11 @@ export default function UpdatesScreen({ navigation, route }: any) {
           const list = snapshot.docs.map(doc => {
             const data = doc.data();
             
+            // SECURITY: If broadcast is targeted to a specific church, skip it if not for this user's church
+            if (data.targetChurchId && member?.churchId && data.targetChurchId !== member.churchId) {
+              return null;
+            }
+
             // SECURITY: If broadcast is targeted to a specific phone, skip it if not for this user
             const isTargeted = data.targetPhone && typeof data.targetPhone === 'string' && data.targetPhone.trim().length > 0;
             if (isTargeted) {

@@ -77,7 +77,7 @@ export const checkContactExists = onCall({ invoker: 'public' }, async (request) 
 /**
  * 🔔 NOTIFY MEMBERS
  */
-export const notifyMembers = onRequest(async (request, response) => {
+export const notifyMembersV2 = onRequest(async (request, response) => {
   const { title, body, target, type } = request.body;
   if (!title || !body) {
     response.status(400).send({ success: false, error: 'Missing title or body' });
@@ -414,10 +414,11 @@ import { onDocumentCreated } from 'firebase-functions/v2/firestore';
  * 📣 ON BROADCAST CREATED TRIGGER (Gen 2)
  * Automatically sends push notifications when a new broadcast is added to Firestore (e.g. Emergency Meeting or custom admin updates)
  */
-export const onBroadcastCreatedV3 = onDocumentCreated(
-  { document: 'broadcasts/{broadcastId}', region: 'asia-south1' },
-  async (event) => {
-    const snapshot = event.data;
+export const processBroadcastPushNotifications = functionsCompat
+  .region('us-central1')
+  .firestore
+  .document('broadcasts/{messageId}')
+  .onCreate(async (snapshot, context) => {
     if (!snapshot) {
       console.log('No data associated with the event');
       return;
@@ -428,7 +429,7 @@ export const onBroadcastCreatedV3 = onDocumentCreated(
 
     // Skip if silent/already handled by scheduler
     if (data.silent === true) {
-      console.log(`🛑 Skipping broadcast push for silent document: ${event.params.broadcastId}`);
+      console.log(`🛑 Skipping broadcast push for silent document: ${context.params.messageId}`);
       return;
     }
 
@@ -442,6 +443,11 @@ export const onBroadcastCreatedV3 = onDocumentCreated(
       const db = getDb();
       let query: any = db.collection('users');
       
+      // Filter by target church if provided (Multi-tenant isolation)
+      if (data.targetChurchId) {
+        query = query.where('primaryChurchId', '==', data.targetChurchId);
+      }
+
       // Filter by target phone number if provided (for individual greetings)
       if (data.targetPhone) {
         // We do NOT use query.where() here because if the DB stores +91... it will fail the lexicographical >= check
@@ -477,7 +483,7 @@ export const onBroadcastCreatedV3 = onDocumentCreated(
         },
         data: {
           type,
-          id: event.params.broadcastId
+          id: context.params.messageId
         },
         android: {
           priority: 'high' as const,

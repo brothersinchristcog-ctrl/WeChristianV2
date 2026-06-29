@@ -26,7 +26,7 @@ type VerifyOtpScreenProps = NativeStackScreenProps<AuthStackParamList, 'VerifyOt
 
 export default function VerifyOtpScreen({ route, navigation }: VerifyOtpScreenProps) {
   const { confirmation, phoneNumber, contactId, memberName, formData, isSignUp } = route.params;
-  const { member } = useAuth();
+  const { member, setMember } = useAuth();
   const { churchId: activeChurchId } = useChurch();
   const [code, setCode] = useState('');
   const [loading, setLoading] = useState(false);
@@ -72,6 +72,23 @@ export default function VerifyOtpScreen({ route, navigation }: VerifyOtpScreenPr
           } catch (profileErr) {
             console.warn('Profile name sync failed:', profileErr);
           }
+
+          // Force update AuthContext so it doesn't get stuck on old cached data
+          const updatedMember = {
+            ...(member || {}),
+            ...formData,
+            id: result.user.uid,
+            name: `${formData.firstName} ${formData.lastName}`.trim(),
+            phone: formData.phone,
+            churchId: activeChurchId,
+            primaryChurchId: activeChurchId,
+            userType: 'Member'
+          };
+          setMember(updatedMember as any);
+          
+          const AsyncStorage = require('@react-native-async-storage/async-storage').default;
+          await AsyncStorage.setItem('@cached_member', JSON.stringify(updatedMember));
+
           navigation.replace('RegistrationSuccess');
           return; // Stop execution, we are done
         }

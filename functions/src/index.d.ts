@@ -1,3 +1,4 @@
+import * as functionsCompat from 'firebase-functions/v1';
 /**
  * 📖 GET DAILY PROMISE
  */
@@ -40,7 +41,7 @@ export declare const checkContactExists: import("firebase-functions/v2/https").C
 /**
  * 🔔 NOTIFY MEMBERS
  */
-export declare const notifyMembers: import("firebase-functions/v2/https").HttpsFunction;
+export declare const notifyMembersV2: import("firebase-functions/v2/https").HttpsFunction;
 /**
  * ⏰ AUTOMATED DAILY PROMISE SCHEDULER
  * Scheduled to run every day at 07:00 AM IST (01:30 AM UTC)
@@ -60,9 +61,7 @@ export declare const automatedDailyAnniversaries: import("firebase-functions/v2/
  * 📣 ON BROADCAST CREATED TRIGGER (Gen 2)
  * Automatically sends push notifications when a new broadcast is added to Firestore (e.g. Emergency Meeting or custom admin updates)
  */
-export declare const onBroadcastCreatedV3: import("firebase-functions/core").CloudFunction<import("firebase-functions/v2/firestore").FirestoreEvent<import("firebase-functions/v2/firestore").QueryDocumentSnapshot | undefined, {
-    broadcastId: string;
-}>>;
+export declare const processBroadcastPushNotifications: functionsCompat.CloudFunction<functionsCompat.firestore.QueryDocumentSnapshot>;
 /**
  * 📤 UPLOAD EVENT IMAGE
  */

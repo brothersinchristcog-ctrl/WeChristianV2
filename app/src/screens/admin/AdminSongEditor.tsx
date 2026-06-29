@@ -149,19 +149,13 @@ export default function AdminSongEditor() {
 
       const db = getFirestore();
       try {
-        await addDoc(collection(db, 'worshipSongs'), {
-          title: titleEn.trim(), titleTe: titleTe.trim(), artist: artist.trim(),
-          lyrics: lyrics.trim(), status, category: primaryCategory,
-          youtubeId: youtubeId.trim(), createdAt: serverTimestamp()
-        });
-      } catch { /* rules may block — OK */ }
-
-      try {
+        const churchId = await FirestoreService.getChurchId();
         await addDoc(collection(db, 'broadcasts'), {
           title: `🎵 New Song: ${titleEn.trim()}`,
           content: `A new worship song "${titleEn.trim()}" has been posted under ${primaryCategory}!`,
           date: new Date().toISOString().split('T')[0],
           type: 'announcement',
+          targetChurchId: churchId,
           createdAt: serverTimestamp()
         });
       } catch { /* rules may block — OK */ }

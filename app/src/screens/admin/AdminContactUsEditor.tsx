@@ -271,7 +271,7 @@ export default function AdminContactUsEditor() {
               {/* Church Name */}
               <View style={styles.fieldCard}>
                 <View style={styles.fieldLabelRow}><Text style={{fontSize:16}}>⛪</Text><Text style={styles.fieldLabel}>Church Name</Text></View>
-                <TextInput style={styles.input} value={draft.churchName} onChangeText={(t) => setDraft((p) => ({ ...p, churchName: t }))} placeholder="E.g. Church of GOD" placeholderTextColor="#94a3b8" />
+                <TextInput style={styles.input} value={draft.churchName} onChangeText={(t) => setDraft((p) => ({ ...p, churchName: t }))} placeholder="E.g. Your Church Name" placeholderTextColor="#94a3b8" />
               </View>
 
               <View style={styles.fieldCard}>

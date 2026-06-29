@@ -232,7 +232,7 @@ export default function AdminPromiseList() {
         <Text style={styles.secHd}>Recent past</Text>
         {past.slice(0, 2).map(item => renderCard(item, 'past'))}
 
-        <Text style={styles.footerBranding}>Church of GOD Admin · Daily Promise Manager</Text>
+        <Text style={styles.footerBranding}>Church Admin · Daily Promise Manager</Text>
         <View style={{ height: 100 }} />
       </ScrollView>
 

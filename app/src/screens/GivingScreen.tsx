@@ -51,7 +51,7 @@ export default function GivingScreen({ navigation }: any) {
   const giving = activeChurch?.givingDetails;
   const upiId = giving?.upiId || '8000504070@ybl';
   const phonepeNum = giving?.phonepeNumber || '8000504070';
-  const payeeName = activeChurch?.name || 'Church of God';
+  const payeeName = activeChurch?.name || 'Your Church';
 
   useEffect(() => {
     const fetchMember = async () => {

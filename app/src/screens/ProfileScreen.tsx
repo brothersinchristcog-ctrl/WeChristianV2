@@ -31,6 +31,7 @@ import {
 import { useAuth } from '../context/AuthContext';
 import { useTheme } from '../context/ThemeContext';
 import FirestoreService, { AppMember } from '../services/FirestoreService';
+import { useChurch } from '../context/ChurchContext';
 import SecurityService from '../services/SecurityService';
 import * as ImagePicker from 'expo-image-picker';
 import { Lock } from 'lucide-react-native';
@@ -39,6 +40,7 @@ const { width } = Dimensions.get('window');
 
 export default function ProfileScreen({ navigation }: any) {
   const { user, signOut } = useAuth();
+  const { activeChurch } = useChurch();
   const { isDark, toggleTheme, colors } = useTheme();
   const [member, setMember] = useState<AppMember | null>(null);
   const [loading, setLoading] = useState(true);
@@ -256,11 +258,11 @@ export default function ProfileScreen({ navigation }: any) {
           </View>
         </View>
 
-        <View style={styles.headerInfo}>
+        <View style={styles.userInfo}>
           <Text style={styles.userName}>{member?.firstName ? `${member.firstName} ${member.lastName || ''}` : member?.name || user?.displayName || 'Beloved Member'}</Text>
-          <Text style={styles.memberBadge}>
-            Church of GOD{member?.mailingCity ? `, ${member.mailingCity}` : ''} · 
-            Member since {member?.joinDate ? new Date(member.joinDate).getFullYear() : '2024'}
+          <Text style={styles.userSub}>
+            {activeChurch?.name || 'Church'}{member?.mailingCity ? `, ${member.mailingCity}` : ''} · 
+            Member since {member?.joinDate ? new Date(member.joinDate).getFullYear() : '2026'}
           </Text>
           
           <View style={styles.badgeRow}>
@@ -273,7 +275,11 @@ export default function ProfileScreen({ navigation }: any) {
               </View>
             )}
             <View style={[styles.badge, styles.badgeActive]}>
-              <Text style={styles.badgeText}>🙏 {member?.userType || 'Active member'}</Text>
+              {(member?.userType?.toLowerCase() === 'admin' || member?.userType?.toLowerCase() === 'super_admin') ? (
+                <Text style={styles.badgeText}>🛡️ {member?.userType || 'Admin'}</Text>
+              ) : (
+                <Text style={styles.badgeText}>🙏 {member?.userType || 'Active member'}</Text>
+              )}
             </View>
           </View>
         </View>
@@ -319,7 +325,7 @@ export default function ProfileScreen({ navigation }: any) {
         <Text style={styles.sectionLabel}>SETTINGS</Text>
         <View style={styles.menuGroup}>
           <MenuItem 
-            icon={<Bell size={20} color="#1a2d5a" />} 
+            icon={<Bell size={20} color="#0891b2" />} 
             iconBg="#eff6ff"
             title="Notifications" 
             sub="Manage your preferences" 

@@ -242,12 +242,14 @@ export default function AdminPromiseEditor() {
       if (finalStatus === 'Published') {
         try {
           const { getFirestore, collection, addDoc, serverTimestamp } = require('@react-native-firebase/firestore');
+          const churchId = await FirestoreService.getChurchId();
           const db = getFirestore();
           await addDoc(collection(db, 'broadcasts'), {
             title: `📖 Daily Promise: ${form.enRef || 'Today\'s Verse'}`,
             content: `"${form.enVerse}" ${form.enRef ? `— ${form.enRef}` : ''}`,
             date: form.date,
             type: 'promise',
+            targetChurchId: churchId,
             createdAt: serverTimestamp()
           });
           console.log('🔔 Daily Promise push notification queued.');

@@ -25,6 +25,7 @@ import {
   Heart
 } from 'lucide-react-native';
 import FirestoreService, { FirestoreVideo } from '../services/FirestoreService';
+import { useChurch } from '../context/ChurchContext';
 
 const { width } = Dimensions.get('window');
 
@@ -41,6 +42,7 @@ export default function SermonVideoScreen({ navigation, route }: any) {
   const [loading, setLoading] = useState(true);
   const [playing, setPlaying] = useState(false);
   const [activeVideo, setActiveVideo] = useState<FirestoreVideo | null>(null);
+  const { activeChurch } = useChurch();
 
   // Initial load from params or fetch
   useEffect(() => {
@@ -58,25 +60,17 @@ export default function SermonVideoScreen({ navigation, route }: any) {
         }));
       setVideos(data);
       
-      const paramId = route?.params?.youtubeId;
-      const paramTitle = route?.params?.videoTitle;
-      const paramPastor = route?.params?.pastor;
+      const sermonData = route?.params?.sermonData;
 
-      if (paramId && paramId.trim() !== '') {
-        const found = data.find(v => v.youtubeId === paramId);
-        if (found) {
-          setActiveVideo(found);
-        } else {
-          // If not in archive, create a direct video object using passed params
-          setActiveVideo({
-            id: 'direct-' + paramId,
-            title: paramTitle || 'Sermon',
-            youtubeId: paramId,
-            date: 'Today',
-            duration: '',
-            pastor: paramPastor || 'Brother Y. Rajesh'
-          });
-        }
+      if (sermonData) {
+        setActiveVideo({
+          id: sermonData.id || 'direct',
+          title: sermonData.title || 'Sermon',
+          youtubeId: sermonData.youtubeId || '',
+          date: sermonData.date || 'Today',
+          duration: sermonData.duration || '',
+          pastor: sermonData.pastor || 'Brother Y. Rajesh'
+        });
       } else if (data.length > 0) {
         setActiveVideo(data[0]);
       }
@@ -101,7 +95,8 @@ export default function SermonVideoScreen({ navigation, route }: any) {
   };
 
   const handleSubscribe = () => {
-    Linking.openURL('https://www.youtube.com/@Brothersinchristfellowship');
+    const yUrl = activeChurch?.socialLinks?.youtube || 'https://www.youtube.com';
+    Linking.openURL(yUrl);
   };
 
   if (loading && !activeVideo) {
@@ -153,15 +148,15 @@ export default function SermonVideoScreen({ navigation, route }: any) {
 
         {/* ── Video Details ── */}
         <View style={styles.videoDetails}>
-          <Text style={styles.videoTitle}>{activeVideo?.title || 'Walking in the Spirit'}</Text>
+          <Text style={styles.videoTitle}>{activeVideo?.title || 'Sermon'}</Text>
           <View style={styles.metaRow}>
             <View style={styles.metaItem}>
               <Play size={12} color="#c0392b" fill="#c0392b" />
               <Text style={styles.metaTxt}>Featured Teaching</Text>
             </View>
             <View style={styles.metaItem}>
-              <Clock size={12} color="#6B7280" />
-              <Text style={styles.metaTxt}>{activeVideo?.date ? (activeVideo.date === 'Today' ? 'Today' : new Date(activeVideo.date).toLocaleDateString('en-US', { month: 'short', day: 'numeric', year: 'numeric' })) : 'Today'}</Text>
+              <Clock size={12} color="#9CA3AF" />
+              <Text style={styles.metaTxt}>{activeVideo?.date || 'Today'}</Text>
             </View>
           </View>
 

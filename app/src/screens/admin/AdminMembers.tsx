@@ -33,7 +33,7 @@ export default function AdminMembers() {
     }
     setError(null);
     try {
-      const data = await FirestoreService.getAdminMembers();
+      const data = await FirestoreService.getAllMembers();
       setMembers(data);
     } catch (err: any) {
       console.error('Error fetching members:', err);

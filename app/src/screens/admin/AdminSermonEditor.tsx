@@ -172,12 +172,14 @@ export default function AdminSermonEditor() {
       if (payload.status === 'Published') {
         try {
           const { getFirestore, collection, addDoc, serverTimestamp } = require('@react-native-firebase/firestore');
+          const churchId = await FirestoreService.getChurchId();
           const db = getFirestore();
           await addDoc(collection(db, 'broadcasts'), {
             title: `🎙️ New Sermon: ${form.titleEn}`,
             content: `New sermon "${form.titleEn}" by ${form.pastor || 'Pastor'} is now available. Watch/listen now!`,
             date: form.date,
             type: 'sermon',
+            targetChurchId: churchId,
             createdAt: serverTimestamp()
           });
           console.log('🔔 Sermon push notification queued.');
@@ -384,7 +386,7 @@ export default function AdminSermonEditor() {
           <View style={styles.notifPreview}>
             <View style={styles.notifHeader}>
               <View style={styles.notifLogo}><Text style={{fontSize: 6, color: '#fff', fontWeight: '800'}}>CG</Text></View>
-              <Text style={styles.notifHeaderTxt}>Church of GOD · Now</Text>
+              <Text style={styles.notifHeaderTxt}>Your Church · Now</Text>
             </View>
             <Text style={styles.notifTitle}>New Sermon 🎙️</Text>
             <Text style={styles.notifBody}>Sermon title · Pastor name · Watch now</Text>

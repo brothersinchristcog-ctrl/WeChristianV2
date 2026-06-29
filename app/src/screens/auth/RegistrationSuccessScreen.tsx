@@ -55,7 +55,7 @@ export default function RegistrationSuccessScreen({ navigation }: any) {
             </View>
             
             <Text style={styles.cardDesc}>
-              Praise the Lord! Your official record has been successfully created in the Church of God Registry.
+              Praise the Lord! Your official record has been successfully created in the Church Registry.
               {"\n\n"}
               You can now access all features including Daily Promises, Prayer Wall, and Sermons.
             </Text>

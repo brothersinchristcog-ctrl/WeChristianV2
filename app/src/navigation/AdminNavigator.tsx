@@ -112,7 +112,7 @@ export default function AdminNavigator({ navigation }: any) {
               />
             </View>
             <View style={styles.headerText}>
-              <Text style={styles.headerTitle}>{activeChurch?.name || 'Church of GOD'}</Text>
+              <Text style={styles.headerTitle}>{activeChurch?.name || 'Admin Panel'}</Text>
               <Text style={styles.headerSub}>Admin Dashboard</Text>
             </View>
             <View style={styles.roleBadge}>
@@ -141,7 +141,7 @@ export default function AdminNavigator({ navigation }: any) {
                   <Image source={activeChurch?.theme?.logoUrl ? { uri: activeChurch.theme.logoUrl } : require('../../assets/logo.png')} style={{ width: 56, height: 56 }} resizeMode="cover" />
                 </View>
                 <View>
-                  <Text style={styles.drawerName}>{activeChurch?.name || 'Church of GOD'}</Text>
+                  <Text style={styles.drawerName}>{activeChurch?.name || 'Your Church'}</Text>
                   <Text style={styles.drawerEmail}>{member?.name || user?.displayName || 'Admin Member'}</Text>
                 </View>
               </View>

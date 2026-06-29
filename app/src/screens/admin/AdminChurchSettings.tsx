@@ -387,7 +387,7 @@ export default function AdminChurchSettings({ navigation }: any) {
             </View>
           )}
 
-          <View style={{ height: 40 }} />
+          <View style={{ height: 160 }} />
         </ScrollView>
       </SafeAreaView>
     </View>

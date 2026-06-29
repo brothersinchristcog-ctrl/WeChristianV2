@@ -360,6 +360,7 @@ export default function AdminEventEditor() {
       status: resolveStatus(status),
       bannerColor,
       bannerUrl,
+      image: bannerUrl,
       recurring: resolveValue('recurring', recurring),
       recurrenceDuration,
       notifyOnPublish, reminder1Day, reminder1Hour,
@@ -376,12 +377,14 @@ export default function AdminEventEditor() {
       if (notifyOnPublish && status === 'Published') {
         try {
           const { getFirestore, collection, addDoc, serverTimestamp } = require('@react-native-firebase/firestore');
+          const churchId = await FirestoreService.getChurchId();
           const db = getFirestore();
           await addDoc(collection(db, 'broadcasts'), {
             title: `📅 New Event: ${titleEn}`,
             content: `Join us for "${titleEn}" on ${sfDate} at ${startTime}${venueEn ? ` · ${venueEn}` : ''}. ${descEn ? descEn.substring(0, 100) : ''}`,
             date: sfDate,
             type: 'event',
+            targetChurchId: churchId,
             createdAt: serverTimestamp()
           });
           console.log('🔔 Event push notification queued.');
@@ -935,7 +938,7 @@ export default function AdminEventEditor() {
           <View style={styles.previewHeader}>
             <View style={styles.previewChurchIcon} />
             <View style={{ flex: 1, marginLeft: 8 }}>
-              <Text style={styles.previewChurchName}>Church of GOD · Now</Text>
+              <Text style={styles.previewChurchName}>Your Church · Now</Text>
               <Text style={styles.previewNotifyTitle}>New Event — {titleEn || 'Event Title'}</Text>
               <Text style={styles.previewNotifySub}>{date} · {startTime} · {venueEn || 'Venue'} · Tap to RSVP</Text>
             </View>

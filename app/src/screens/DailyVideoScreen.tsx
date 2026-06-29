@@ -25,6 +25,7 @@ import {
   Heart
 } from 'lucide-react-native';
 import FirestoreService, { FirestoreVideo } from '../services/FirestoreService';
+import { useChurch } from '../context/ChurchContext';
 
 const { width } = Dimensions.get('window');
 
@@ -42,6 +43,7 @@ export default function DailyVideoScreen({ navigation, route }: any) {
   const [loading, setLoading] = useState(true);
   const [playing, setPlaying] = useState(false);
   const [activeVideo, setActiveVideo] = useState<FirestoreVideo | null>(null);
+  const { activeChurch } = useChurch();
 
   // Initial load from params or fetch
   useEffect(() => {
@@ -78,8 +80,17 @@ export default function DailyVideoScreen({ navigation, route }: any) {
             pastor: paramPastor || 'Brother Y. Rajesh'
           });
         }
-      } else if (data.length > 0) {
-        setActiveVideo(data[0]);
+      } else {
+        // Fallback to church's youtube live/channel
+        const fallbackId = activeChurch?.socialLinks?.youtube ? extractYoutubeId(activeChurch.socialLinks.youtube) : '';
+        setActiveVideo({
+          id: 'church-live',
+          title: activeChurch?.name ? `${activeChurch.name} Live / Channel` : 'Today\'s Devotional',
+          youtubeId: fallbackId || 'live', 
+          date: 'Today',
+          duration: '',
+          pastor: 'Main Speaker'
+        });
       }
       setLoading(false);
     };
@@ -102,7 +113,8 @@ export default function DailyVideoScreen({ navigation, route }: any) {
   };
 
   const handleSubscribe = () => {
-    Linking.openURL('https://www.youtube.com/@Brothersinchristfellowship');
+    const yUrl = activeChurch?.socialLinks?.youtube || 'https://www.youtube.com';
+    Linking.openURL(yUrl);
   };
 
   if (loading && !activeVideo) {
@@ -144,7 +156,7 @@ export default function DailyVideoScreen({ navigation, route }: any) {
 
         {/* ── Video Details ── */}
         <View style={styles.videoDetails}>
-          <Text style={styles.videoTitle}>{activeVideo?.title || 'Walking in the Spirit'}</Text>
+          <Text style={styles.videoTitle}>{activeVideo?.title || (activeChurch?.name ? `${activeChurch.name} Live` : 'Today\'s Devotional')}</Text>
           <View style={styles.metaRow}>
             <View style={styles.metaItem}>
               <Play size={12} color="#c0392b" fill="#c0392b" />

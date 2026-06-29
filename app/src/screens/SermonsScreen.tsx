@@ -132,9 +132,7 @@ export default function SermonsScreen({ navigation }: any) {
     <TouchableOpacity 
       style={[styles.sermonCard, { backgroundColor: isDark ? '#1e293b' : '#fff', borderColor: isDark ? '#334155' : '#f1f5f9' }]}
       onPress={() => navigation.navigate('SermonVideo', { 
-        youtubeId: item.youtubeId, 
-        videoTitle: item.title,
-        pastor: item.pastor 
+        sermonData: item
       })}
     >
       <View style={[styles.scThumb, { backgroundColor: isDark ? '#0f172a' : '#0f172a' }]}>
