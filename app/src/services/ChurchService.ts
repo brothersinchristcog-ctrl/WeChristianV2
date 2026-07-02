@@ -125,6 +125,35 @@ class ChurchService {
       throw error;
     }
   }
+
+  /**
+   * Fetch church secrets (e.g., payment gateway keys)
+   */
+  async getChurchSecrets(churchId: string): Promise<{ phonePeMerchantId?: string; phonePeSaltKey?: string; phonePeSaltIndex?: string } | null> {
+    try {
+      const docSnap = await firestore().collection('churches').doc(churchId).collection('secrets').doc('payment').get();
+      if (docSnap.exists()) {
+        return docSnap.data() as any;
+      }
+      return null;
+    } catch (error) {
+      console.error('Error fetching church secrets:', error);
+      return null;
+    }
+  }
+
+  /**
+   * Update church secrets
+   */
+  async updateChurchSecrets(churchId: string, secrets: { phonePeMerchantId?: string; phonePeSaltKey?: string; phonePeSaltIndex?: string }): Promise<boolean> {
+    try {
+      await firestore().collection('churches').doc(churchId).collection('secrets').doc('payment').set(secrets, { merge: true });
+      return true;
+    } catch (error) {
+      console.error('Error updating church secrets:', error);
+      return false;
+    }
+  }
 }
 
 export default new ChurchService();

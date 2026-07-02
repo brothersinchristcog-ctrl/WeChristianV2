@@ -11,6 +11,9 @@ import { SalesforceBackend } from './services/SalesforceBackend.js';
 // Initialize Firebase Admin once at top level
 initializeApp();
 
+// TODO: When Salesforce integration becomes multi-tenant, remove this and loop over churches.
+const DEFAULT_CHURCH_ID = 'KhmBeNWxlrxwS1hGhuw';
+
 // Lazy initialization helpers
 let _db: any;
 let _messaging: any;
@@ -28,6 +31,12 @@ const getSf = () => {
     });
   }
   return _sfBackend;
+};
+
+// Helper to remove HTML tags from rich text before sending push notifications
+const stripHtml = (html: string) => {
+  if (!html) return '';
+  return html.replace(/<[^>]*>?/gm, '').trim();
 };
 
 /**
@@ -150,7 +159,7 @@ export const automatedDailyPromise = onSchedule({ schedule: '0 5 * * *', timeZon
     const db = getDb();
     
     // Check if enabled
-    const settingsDoc = await db.collection('settings').doc('notifications').get();
+    const settingsDoc = await db.collection('churches').doc(DEFAULT_CHURCH_ID).collection('settings').doc('notifications').get();
     const settings = settingsDoc.data();
     if (settings && settings.dailyPromise && settings.dailyPromise.enabled === false) {
       console.log('🛑 Daily Promise automation is disabled.');
@@ -167,7 +176,7 @@ export const automatedDailyPromise = onSchedule({ schedule: '0 5 * * *', timeZon
     const content = promise.Promises__c || promise.Promise_text_telugu__c || 'Grace and Peace be multiplied to you today.';
 
     // Pushed to broadcasts collection
-    await db.collection('broadcasts').add({
+    await db.collection('churches').doc(DEFAULT_CHURCH_ID).collection('broadcasts').add({
       title: '📖 Today\'s Promise · ఈ రోజు వాగ్దానం',
       content: content,
       date: dateStr,
@@ -189,7 +198,7 @@ export const automatedDailyPromise = onSchedule({ schedule: '0 5 * * *', timeZon
       const message = {
         notification: {
           title: '📖 Daily Promise · ఈ రోజు వాగ్దానం',
-          body: content.slice(0, 100) + '...'
+          body: stripHtml(content).slice(0, 100) + '...'
         },
         data: { type: 'general' },
         android: {
@@ -231,7 +240,7 @@ export const automatedDailyBirthdays = onSchedule({ schedule: '0 6 * * *', timeZ
     const db = getDb();
 
     // Check if enabled
-    const settingsDoc = await db.collection('settings').doc('notifications').get();
+    const settingsDoc = await db.collection('churches').doc(DEFAULT_CHURCH_ID).collection('settings').doc('notifications').get();
     const settings = settingsDoc.data();
     if (settings && settings.birthdayNotif && settings.birthdayNotif.enabled === false) {
       console.log('🛑 Birthday greetings automation is disabled.');
@@ -262,7 +271,7 @@ export const automatedDailyBirthdays = onSchedule({ schedule: '0 6 * * *', timeZ
       const personalGreeting = `Dear ${member.name}, ${greetingTemplate}`;
       
       // Save to broadcasts
-      const docRef = await db.collection('broadcasts').add({
+      const docRef = await db.collection('churches').doc(DEFAULT_CHURCH_ID).collection('broadcasts').add({
         title: `🎂 Happy Birthday, ${member.name}!`,
         content: personalGreeting,
         date: dateStr,
@@ -323,7 +332,7 @@ export const automatedDailyAnniversaries = onSchedule({ schedule: '30 6 * * *', 
     const db = getDb();
 
     // Check if enabled
-    const settingsDoc = await db.collection('settings').doc('notifications').get();
+    const settingsDoc = await db.collection('churches').doc(DEFAULT_CHURCH_ID).collection('settings').doc('notifications').get();
     const settings = settingsDoc.data();
     if (settings && settings.anniversaryNotif && settings.anniversaryNotif.enabled === false) {
       console.log('🛑 Anniversary greetings automation is disabled.');
@@ -354,7 +363,7 @@ export const automatedDailyAnniversaries = onSchedule({ schedule: '30 6 * * *', 
       const personalGreeting = `Wishing Brother ${ann.husband} & Sister ${ann.wife} a wonderful ${ann.years}th Wedding Anniversary! ${greetingTemplate}`;
 
       // Save to broadcasts
-      const docRef = await db.collection('broadcasts').add({
+      const docRef = await db.collection('churches').doc(DEFAULT_CHURCH_ID).collection('broadcasts').add({
         title: `💐 Happy Wedding Anniversary!`,
         content: personalGreeting,
         date: dateStr,
@@ -417,7 +426,7 @@ import { onDocumentCreated } from 'firebase-functions/v2/firestore';
 export const processBroadcastPushNotifications = functionsCompat
   .region('us-central1')
   .firestore
-  .document('broadcasts/{messageId}')
+  .document('churches/{churchId}/broadcasts/{messageId}')
   .onCreate(async (snapshot, context) => {
     if (!snapshot) {
       console.log('No data associated with the event');
@@ -443,9 +452,9 @@ export const processBroadcastPushNotifications = functionsCompat
       const db = getDb();
       let query: any = db.collection('users');
       
-      // Filter by target church if provided (Multi-tenant isolation)
-      if (data.targetChurchId) {
-        query = query.where('primaryChurchId', '==', data.targetChurchId);
+      const churchId = context.params.churchId;
+      if (churchId) {
+        query = query.where('primaryChurchId', '==', churchId);
       }
 
       // Filter by target phone number if provided (for individual greetings)
@@ -476,10 +485,11 @@ export const processBroadcastPushNotifications = functionsCompat
         return;
       }
 
+      const plainBody = stripHtml(body);
       const message = {
         notification: {
           title,
-          body: body.length > 200 ? body.substring(0, 197) + '...' : body
+          body: plainBody.length > 200 ? plainBody.substring(0, 197) + '...' : plainBody
         },
         data: {
           type,
@@ -583,7 +593,7 @@ export const checkYouTubeLive = onSchedule('*/5 * * * *', async (event) => {
     const liveUrl = videoId ? `https://www.youtube.com/watch?v=${videoId}` : url;
     
     const db = getDb();
-    const liveRef = db.collection('settings').doc('youtube_live');
+    const liveRef = db.collection('churches').doc(DEFAULT_CHURCH_ID).collection('settings').doc('youtube_live');
     const liveSnap = await liveRef.get();
     
     const prevState = liveSnap.exists ? liveSnap.data() : { isLive: false };
@@ -602,7 +612,7 @@ export const checkYouTubeLive = onSchedule('*/5 * * * *', async (event) => {
       
       // 1. Add to broadcasts
       const dateStr = new Date().toLocaleDateString('en-US', { month: 'long', day: 'numeric' });
-      const docRef = await db.collection('broadcasts').add({
+      const docRef = await db.collection('churches').doc(DEFAULT_CHURCH_ID).collection('broadcasts').add({
         title: '🎥 YouTube Live Stream Started!',
         content: 'Brothers in Christ Fellowship is now LIVE on YouTube. Click to join the stream and worship with us! 🎥🙏',
         date: dateStr,
@@ -673,7 +683,7 @@ export const triggerTestYouTubeLive = onCall({ invoker: 'public' }, async (reque
     
     // Save to Firestore first
     const dateStr = new Date().toLocaleDateString('en-US', { month: 'long', day: 'numeric' });
-    const docRef = await db.collection('broadcasts').add({
+    const docRef = await db.collection('churches').doc(DEFAULT_CHURCH_ID).collection('broadcasts').add({
       title: '🎥 YouTube Live Stream Started!',
       content: 'Brothers in Christ Fellowship is now LIVE on YouTube. Click to join the stream and worship with us! 🎥🙏',
       date: dateStr,
@@ -734,3 +744,6 @@ export const triggerTestYouTubeLive = onCall({ invoker: 'public' }, async (reque
     throw new HttpsError('internal', error.message);
   }
 });
+
+export * from './payments.js';
+export * from './checkPaymentStatus.js';

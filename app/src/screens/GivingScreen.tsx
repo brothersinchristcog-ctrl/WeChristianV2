@@ -24,6 +24,8 @@ import { useAuth } from '../context/AuthContext';
 import { useTheme } from '../context/ThemeContext';
 import { useChurch } from '../context/ChurchContext';
 import FirestoreService, { AppMember } from '../services/FirestoreService';
+import { functions } from '../services/firebaseConfig';
+import * as WebBrowser from 'expo-web-browser';
 
 const { width } = Dimensions.get('window');
 
@@ -82,25 +84,29 @@ export default function GivingScreen({ navigation }: any) {
         phone: user?.phoneNumber || '',
         churchId: activeChurch?.id || ''
       });
-      const formattedAmt = numAmt.toFixed(2);
-      const safePayeeName = payeeName.replace(/[^a-zA-Z0-9 ]/g, "").trim();
+      // 1. Call Cloud Function to initiate payment
+      const startDonationFn = functions().httpsCallable('processDonationV1True');
       
-      const upiUrl = `upi://pay?pa=${upiId}&pn=${encodeURIComponent(safePayeeName)}&tn=${encodeURIComponent(activeCat)}&am=${formattedAmt}&cu=INR`;
-      const phonepeUrl = `phonepe://pay?pa=${upiId}&pn=${encodeURIComponent(safePayeeName)}&tn=${encodeURIComponent(activeCat)}&am=${formattedAmt}&cu=INR`;
+      const response = await startDonationFn({
+        amount: numAmt,
+        churchId: activeChurch?.id || '',
+        purpose: activeCat,
+        memberId: member?.id || user?.uid || 'guest'
+      });
 
-      try {
-        // Try direct PhonePe intent first
-        await Linking.openURL(phonepeUrl);
-      } catch (phonePeError) {
-        try {
-          // Fallback to generic UPI chooser
-          await Linking.openURL(upiUrl);
-        } catch (upiError) {
-          Alert.alert('Payment Failed', 'No UPI app found on your device. Please install PhonePe, GPay, or Paytm to continue.');
-        }
+      const { success, redirectUrl } = response.data as any;
+
+      if (success && redirectUrl) {
+        // 2. Open PhonePe Web Checkout
+        const browserResult = await WebBrowser.openBrowserAsync(redirectUrl);
+        // The deep link will handle the success/failure return 
+        // which can be caught by PaymentResultScreen (to be implemented)
+      } else {
+        Alert.alert('Payment Failed', 'Could not initiate payment. Please try again later.');
       }
-    } catch (err) {
-      Alert.alert('Error', 'Unable to initiate payment. Please try again.');
+    } catch (error: any) {
+      console.error('Payment Error:', error);
+      Alert.alert('Payment Failed', error.message || 'An error occurred while initiating the payment.');
     } finally {
       setLoading(false);
     }

@@ -10,6 +10,8 @@ import {
   ScrollView,
   StatusBar,
   Image,
+  Share,
+  Clipboard,
 } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
 import { ChevronLeft, Save, Palette, Image as ImageIcon, Link, DollarSign, Building2, Plus, Trash2 } from 'lucide-react-native';
@@ -32,6 +34,7 @@ export default function AdminChurchSettings({ navigation }: any) {
   const [uploadingImage, setUploadingImage] = useState<'logo' | 'banner' | null>(null);
 
   const [form, setForm] = useState<Partial<ChurchDetails>>({});
+  const [secrets, setSecrets] = useState<{ phonePeMerchantId?: string; phonePeSaltKey?: string; phonePeSaltIndex?: string }>({});
   const [activeTab, setActiveTab] = useState<'info' | 'branding' | 'giving'>('info');
   const [isEditing, setIsEditing] = useState(false);
 
@@ -45,7 +48,15 @@ export default function AdminChurchSettings({ navigation }: any) {
     if (data) {
       setForm(data);
     }
+    const churchSecrets = await ChurchService.getChurchSecrets(churchId);
+    if (churchSecrets) {
+      setSecrets(churchSecrets);
+    }
     setLoading(false);
+  };
+
+  const updateSecret = (field: string, value: string) => {
+    setSecrets(prev => ({ ...prev, [field]: value }));
   };
 
   const updateField = (section: keyof ChurchDetails, field: string, value: any) => {
@@ -54,7 +65,7 @@ export default function AdminChurchSettings({ navigation }: any) {
       if (section === 'name' || section === 'tagline' || section === 'contactEmail' || section === 'contactPhone' || section === 'address' || section === 'aboutUs') {
         (newForm as any)[section] = value;
       } else {
-        newForm[section] = { ...(newForm[section] || {}), [field]: value } as any;
+        newForm[section] = { ...(newForm[section] as any || {}), [field]: value } as any;
       }
       return newForm;
     });
@@ -132,6 +143,7 @@ export default function AdminChurchSettings({ navigation }: any) {
     setSaving(true);
     try {
       await ChurchService.updateChurch(churchId, form);
+      await ChurchService.updateChurchSecrets(churchId, secrets);
       // Refresh the context so the app updates immediately
       const updated = await ChurchService.getChurchDetails(churchId);
       if (updated) setActiveChurch(updated);
@@ -207,6 +219,42 @@ export default function AdminChurchSettings({ navigation }: any) {
           {activeTab === 'info' && (
             <View>
               {!isEditing && <Text style={styles.viewModeHint}>Tap 'Edit' in the top right to make changes.</Text>}
+
+              {/* Church Code Card */}
+              {(form as any).churchCode || form.subdomain ? (
+                <View style={styles.churchCodeCard}>
+                  <Text style={styles.churchCodeLabel}>CHURCH JOIN CODE</Text>
+                  <Text style={[styles.churchCodeValue, { color: primaryColor }]}>
+                    {(form as any).churchCode || (form.subdomain || '').toUpperCase()}
+                  </Text>
+                  <Text style={styles.churchCodeHint}>Share this code with your congregation to let them join</Text>
+                  <View style={styles.churchCodeActions}>
+                    <TouchableOpacity
+                      style={[styles.churchCodeBtn, { borderColor: primaryColor }]}
+                      onPress={() => {
+                        const code = (form as any).churchCode || (form.subdomain || '').toUpperCase();
+                        Clipboard.setString(code);
+                        Alert.alert('Copied!', `Church code "${code}" copied to clipboard.`);
+                      }}
+                    >
+                      <Text style={[styles.churchCodeBtnTxt, { color: primaryColor }]}>📋 Copy Code</Text>
+                    </TouchableOpacity>
+                    <TouchableOpacity
+                      style={[styles.churchCodeBtn, { borderColor: primaryColor }]}
+                      onPress={() => {
+                        const code = (form as any).churchCode || (form.subdomain || '').toUpperCase();
+                        Share.share({
+                          message: `Join "${form.name}" on WeChristian! Use the church code: ${code}`,
+                          title: `Join ${form.name} on WeChristian`,
+                        });
+                      }}
+                    >
+                      <Text style={[styles.churchCodeBtnTxt, { color: primaryColor }]}>📤 Share Code</Text>
+                    </TouchableOpacity>
+                  </View>
+                </View>
+              ) : null}
+
               <Text style={styles.sectionLabel}>Basic Information</Text>
               
               <Text style={styles.label}>Church Name</Text>
@@ -300,7 +348,22 @@ export default function AdminChurchSettings({ navigation }: any) {
           {activeTab === 'giving' && (
             <View>
               {!isEditing && <Text style={styles.viewModeHint}>Tap 'Edit' in the top right to make changes.</Text>}
-              <Text style={styles.sectionLabel}>Primary UPI & Mobile Payments</Text>
+
+              <Text style={styles.sectionLabel}>PhonePe Payment Gateway Config (Secrets)</Text>
+              <Text style={{ fontSize: 11, color: '#64748b', marginBottom: 12 }}>
+                These values are stored securely and never exposed to members. Used for automated web checkout.
+              </Text>
+              
+              <Text style={styles.label}>Merchant ID</Text>
+              <TextInput style={[styles.input, !isEditing && styles.inputDisabled]} value={secrets.phonePeMerchantId} onChangeText={v => updateSecret('phonePeMerchantId', v)} placeholder="e.g. M1234567890" placeholderTextColor="#64748b" editable={isEditing} />
+
+              <Text style={styles.label}>Salt Key</Text>
+              <TextInput style={[styles.input, !isEditing && styles.inputDisabled]} value={secrets.phonePeSaltKey} onChangeText={v => updateSecret('phonePeSaltKey', v)} placeholder="e.g. 099eb0cd-02cf-4e2a-8aca-3e6c6aff0399" placeholderTextColor="#64748b" secureTextEntry={!isEditing} editable={isEditing} />
+
+              <Text style={styles.label}>Salt Index</Text>
+              <TextInput style={[styles.input, !isEditing && styles.inputDisabled]} value={secrets.phonePeSaltIndex} onChangeText={v => updateSecret('phonePeSaltIndex', v)} placeholder="e.g. 1" placeholderTextColor="#64748b" keyboardType="numeric" editable={isEditing} />
+
+              <Text style={[styles.sectionLabel, { marginTop: 12 }]}>Primary UPI & Mobile Payments</Text>
               
               <Text style={styles.label}>UPI ID</Text>
               <TextInput style={[styles.input, !isEditing && styles.inputDisabled]} value={form.givingDetails?.upiId} onChangeText={v => updateField('givingDetails', 'upiId', v)} placeholder="e.g. church@okicici" placeholderTextColor="#64748b" editable={isEditing} />
@@ -336,6 +399,17 @@ export default function AdminChurchSettings({ navigation }: any) {
                   <TextInput style={[styles.input, !isEditing && {backgroundColor:'transparent', borderColor:'transparent', paddingHorizontal:0, height:30}]} value={upi.phonepeNumber} onChangeText={v => updateUpi(i, 'phonepeNumber', v)} placeholder="Optional" placeholderTextColor="#64748b" keyboardType="phone-pad" editable={isEditing} />
                 </View>
               ))}
+
+              <Text style={[styles.sectionLabel, { marginTop: 24 }]}>PhonePe Gateway Configuration</Text>
+              
+              <Text style={styles.label}>Merchant ID</Text>
+              <TextInput style={[styles.input, !isEditing && styles.inputDisabled]} value={secrets.phonePeMerchantId} onChangeText={v => updateSecret('phonePeMerchantId', v)} placeholder="e.g. PGTESTPAYUAT" placeholderTextColor="#64748b" editable={isEditing} />
+
+              <Text style={styles.label}>Salt Key</Text>
+              <TextInput style={[styles.input, !isEditing && styles.inputDisabled]} value={secrets.phonePeSaltKey} onChangeText={v => updateSecret('phonePeSaltKey', v)} placeholder="e.g. 099eb0cd-02cf-4e2a-8aca-3e6c6aff0399" placeholderTextColor="#64748b" editable={isEditing} secureTextEntry={!isEditing} />
+
+              <Text style={styles.label}>Salt Index</Text>
+              <TextInput style={[styles.input, !isEditing && styles.inputDisabled]} value={secrets.phonePeSaltIndex} onChangeText={v => updateSecret('phonePeSaltIndex', v)} placeholder="1" placeholderTextColor="#64748b" editable={isEditing} keyboardType="numeric" />
 
               <Text style={[styles.sectionLabel, { marginTop: 24 }]}>Primary Bank Transfer Details</Text>
               
@@ -460,4 +534,27 @@ const styles = StyleSheet.create({
   cardItem: { backgroundColor: '#f8fafc', padding: 16, borderRadius: 12, borderWidth: 1, borderColor: '#e2e8f0', marginBottom: 16 },
   cardHeader: { flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center', marginBottom: 12 },
   cardTitle: { fontSize: 14, fontWeight: '700', color: '#0f172a' },
+
+  churchCodeCard: {
+    backgroundColor: '#f0f4ff', borderRadius: 16, padding: 20, marginBottom: 24,
+    alignItems: 'center', borderWidth: 1.5, borderColor: '#c7d2fe',
+  },
+  churchCodeLabel: {
+    fontSize: 10, fontWeight: '800', color: '#6366f1', letterSpacing: 2, marginBottom: 8,
+  },
+  churchCodeValue: {
+    fontSize: 32, fontWeight: '900', letterSpacing: 6, marginBottom: 6,
+  },
+  churchCodeHint: {
+    fontSize: 12, color: '#64748b', textAlign: 'center', marginBottom: 16,
+  },
+  churchCodeActions: {
+    flexDirection: 'row', gap: 12,
+  },
+  churchCodeBtn: {
+    borderWidth: 1.5, borderRadius: 10, paddingVertical: 8, paddingHorizontal: 16,
+  },
+  churchCodeBtnTxt: {
+    fontSize: 13, fontWeight: '700',
+  },
 });
