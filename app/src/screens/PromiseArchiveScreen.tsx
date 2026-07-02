@@ -92,7 +92,7 @@ export default function PromiseArchiveScreen({ navigation }: any) {
       const refEn = promise.verseReferenceEn || promise.verseReference || 'Bible';
       
       await Share.share({
-        message: `Daily Promise from Church of God:\n\n"${verse}"\n\n${telugu}\n\n- ${refEn}`,
+        message: `Daily Promise from ${activeChurch?.name || 'Your Church'}:\n\n"${verse}"\n\n${telugu}\n\n- ${refEn}`,
       });
     } catch (error) {
       console.error('Error sharing:', error);

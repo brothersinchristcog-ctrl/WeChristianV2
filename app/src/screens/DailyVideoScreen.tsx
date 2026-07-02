@@ -25,14 +25,25 @@ import {
   Heart
 } from 'lucide-react-native';
 import FirestoreService, { FirestoreVideo } from '../services/FirestoreService';
+import { useChurch } from '../context/ChurchContext';
 
 const { width } = Dimensions.get('window');
+
+const extractYoutubeId = (url: string) => {
+  if (!url || typeof url !== 'string') return '';
+  const cleanUrl = url.trim();
+  const match = cleanUrl.match(/(?:youtu\.be\/|youtube\.com\/(?:embed\/|v\/|watch\?v=|watch\?.+&v=|shorts\/|live\/))([\w-]+)/);
+  const id = match ? match[1] : cleanUrl;
+  console.log('Extracted YT ID:', id, 'from', url);
+  return id;
+};
 
 export default function DailyVideoScreen({ navigation, route }: any) {
   const [videos, setVideos] = useState<FirestoreVideo[]>([]);
   const [loading, setLoading] = useState(true);
   const [playing, setPlaying] = useState(false);
   const [activeVideo, setActiveVideo] = useState<FirestoreVideo | null>(null);
+  const { activeChurch } = useChurch();
 
   // Initial load from params or fetch
   useEffect(() => {
@@ -69,8 +80,17 @@ export default function DailyVideoScreen({ navigation, route }: any) {
             pastor: paramPastor || 'Brother Y. Rajesh'
           });
         }
-      } else if (data.length > 0) {
-        setActiveVideo(data[0]);
+      } else {
+        // Fallback to church's youtube live/channel
+        const fallbackId = activeChurch?.socialLinks?.youtube ? extractYoutubeId(activeChurch.socialLinks.youtube) : '';
+        setActiveVideo({
+          id: 'church-live',
+          title: activeChurch?.name ? `${activeChurch.name} Live / Channel` : 'Today\'s Devotional',
+          youtubeId: fallbackId || 'live', 
+          date: 'Today',
+          duration: '',
+          pastor: 'Main Speaker'
+        });
       }
       setLoading(false);
     };
@@ -93,7 +113,8 @@ export default function DailyVideoScreen({ navigation, route }: any) {
   };
 
   const handleSubscribe = () => {
-    Linking.openURL('https://www.youtube.com/@Brothersinchristfellowship');
+    const yUrl = activeChurch?.socialLinks?.youtube || 'https://www.youtube.com';
+    Linking.openURL(yUrl);
   };
 
   if (loading && !activeVideo) {
@@ -128,14 +149,14 @@ export default function DailyVideoScreen({ navigation, route }: any) {
           <YoutubePlayer
             height={width * 0.56}
             play={playing}
-            videoId={activeVideo?.youtubeId || ''}
+            videoId={extractYoutubeId(activeVideo?.youtubeId || '')}
             onChangeState={onStateChange}
           />
         </View>
 
         {/* ── Video Details ── */}
         <View style={styles.videoDetails}>
-          <Text style={styles.videoTitle}>{activeVideo?.title || 'Walking in the Spirit'}</Text>
+          <Text style={styles.videoTitle}>{activeVideo?.title || (activeChurch?.name ? `${activeChurch.name} Live` : 'Today\'s Devotional')}</Text>
           <View style={styles.metaRow}>
             <View style={styles.metaItem}>
               <Play size={12} color="#c0392b" fill="#c0392b" />
@@ -151,7 +172,7 @@ export default function DailyVideoScreen({ navigation, route }: any) {
             <View style={styles.pastorAv}><Text style={styles.pastorAvTxt}>P</Text></View>
             <View style={{ flex: 1 }}>
               <Text style={styles.pastorName}>{activeVideo?.pastor || 'Brother Y. Rajesh'}</Text>
-              <Text style={styles.pastorRole}>Main Speaker · COG</Text>
+              <Text style={styles.pastorRole}>Main Speaker</Text>
             </View>
             <TouchableOpacity style={styles.subBtn} onPress={handleSubscribe}>
               <Text style={styles.subBtnTxt}>Subscribe</Text>
@@ -167,26 +188,35 @@ export default function DailyVideoScreen({ navigation, route }: any) {
         {/* ── Archive ── */}
         <Text style={styles.secLbl}>PAST PROMISES</Text>
         <View style={styles.archiveList}>
-          {videos.filter(v => v.id !== activeVideo?.id).map((video) => (
-            <TouchableOpacity 
-              key={video.id} 
-              style={styles.archiveItem}
-              onPress={() => setActiveVideo(video)}
-            >
-              <View style={styles.thumbBox}>
-                <Image 
-                  source={{ uri: `https://img.youtube.com/vi/${video.youtubeId}/mqdefault.jpg` }} 
-                  style={styles.thumb} 
-                />
-                <View style={styles.playIcon}><Play size={10} color="#fff" fill="#fff" /></View>
-              </View>
-              <View style={styles.itemInfo}>
-                <Text style={styles.itemTitle} numberOfLines={1}>{video.title}</Text>
-                <Text style={styles.itemMeta}>{video.date ? new Date(video.date).toLocaleDateString('en-US', { month: 'short', day: 'numeric' }) : ''} · {video.duration}</Text>
-              </View>
-              <ChevronRight size={16} color="#D1D5DB" />
-            </TouchableOpacity>
-          ))}
+          {videos.filter(v => v.id !== activeVideo?.id).length === 0 ? (
+            <View style={{ padding: 20, alignItems: 'center' }}>
+              <Text style={{ color: '#9CA3AF', fontSize: 12, fontStyle: 'italic' }}>No other past video promises available.</Text>
+            </View>
+          ) : (
+            videos.filter(v => v.id !== activeVideo?.id).map((video) => {
+              const vidId = extractYoutubeId(video.youtubeId);
+              return (
+              <TouchableOpacity 
+                key={video.id} 
+                style={styles.archiveItem}
+                onPress={() => setActiveVideo(video)}
+              >
+                <View style={styles.thumbBox}>
+                  <Image 
+                    source={{ uri: `https://img.youtube.com/vi/${vidId}/mqdefault.jpg` }} 
+                    style={styles.thumb} 
+                  />
+                  <View style={styles.playIcon}><Play size={10} color="#fff" fill="#fff" /></View>
+                </View>
+                <View style={styles.itemInfo}>
+                  <Text style={styles.itemTitle} numberOfLines={1}>{video.title}</Text>
+                  <Text style={styles.itemMeta}>{video.date ? new Date(video.date).toLocaleDateString('en-US', { month: 'short', day: 'numeric' }) : ''} · {video.duration}</Text>
+                </View>
+                <ChevronRight size={16} color="#D1D5DB" />
+              </TouchableOpacity>
+              );
+            })
+          )}
         </View>
 
       </ScrollView>

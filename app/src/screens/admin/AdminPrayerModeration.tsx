@@ -115,7 +115,7 @@ export default function AdminPrayerModeration() {
 
   const postAsOptions = [
     adminName,
-    'Church of GOD — Corporate',
+    'Church — Corporate',
     'Anonymous'
   ];
 

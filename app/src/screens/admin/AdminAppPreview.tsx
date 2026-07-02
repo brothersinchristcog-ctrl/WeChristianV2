@@ -92,7 +92,7 @@ export default function AdminAppPreview() {
   const handleShare = async () => {
     if (!promise) return;
     try {
-      const message = `${stripHtml(promise.verse)}\n\n— ${promise.verseReferenceEn}\n\n${promise.verseTelugu ? stripHtml(promise.verseTelugu) + '\n\n' : ''}Church of GOD`;
+      const message = `${stripHtml(promise.verse)}\n\n— ${promise.verseReferenceEn}\n\n${promise.verseTelugu ? stripHtml(promise.verseTelugu) + '\n\n' : ''}Your Church`;
       await Share.share({ message });
     } catch (err) {
       console.error(err);
@@ -248,7 +248,7 @@ export default function AdminAppPreview() {
         </View>
 
         <View style={styles.footerBranding}>
-          <Text style={styles.footerBrandingTxt}>App Preview · Church of GOD</Text>
+          <Text style={styles.footerBrandingTxt}>App Preview · Your Church</Text>
         </View>
         <View style={{ height: 60 }} />
       </ScrollView>

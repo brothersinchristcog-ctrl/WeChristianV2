@@ -19,13 +19,15 @@ import { AuthStackParamList } from '../../navigation/AuthNavigator';
 import Theme from '../../theme/Theme';
 import FirestoreService from '../../services/FirestoreService';
 import { useAuth } from '../../context/AuthContext';
+import { useChurch } from '../../context/ChurchContext';
 import { ChevronLeft, ShieldCheck, RefreshCw } from 'lucide-react-native';
 
 type VerifyOtpScreenProps = NativeStackScreenProps<AuthStackParamList, 'VerifyOtp'>;
 
 export default function VerifyOtpScreen({ route, navigation }: VerifyOtpScreenProps) {
-  const { confirmation, phoneNumber, contactId, memberName } = route.params;
-  const { member } = useAuth();
+  const { confirmation, phoneNumber, contactId, memberName, formData, isSignUp } = route.params;
+  const { member, setMember } = useAuth();
+  const { churchId: activeChurchId } = useChurch();
   const [code, setCode] = useState('');
   const [loading, setLoading] = useState(false);
   const [status, setStatus] = useState('');
@@ -41,14 +43,63 @@ export default function VerifyOtpScreen({ route, navigation }: VerifyOtpScreenPr
     
     try {
       const result = await confirmation.confirm(code);
+      const { firestore, FieldValue } = require('../../services/firebaseConfig');
 
-      if (result?.user && contactId) {
+      if (result?.user && isSignUp && formData && activeChurchId) {
+        setStatus('Creating your member profile...');
+        
+        // 1. Create global user document
+        await firestore().collection('users').doc(result.user.uid).set({
+          uid: result.user.uid,
+          name: `${formData.firstName} ${formData.lastName}`.trim(),
+          phone: formData.phone,
+          email: formData.email || '',
+          primaryChurchId: activeChurchId,
+          createdAt: FieldValue.serverTimestamp()
+        });
+
+        // 2. Create nested member profile
+        const createResult = await FirestoreService.createMember(activeChurchId, { 
+          ...formData, 
+          id: result.user.uid, 
+          userType: 'Member', 
+          joinDate: new Date().toISOString() 
+        }, result.user.uid);
+        
+        if (createResult.success) {
+          try {
+            await result.user.updateProfile({ displayName: formData.firstName });
+          } catch (profileErr) {
+            console.warn('Profile name sync failed:', profileErr);
+          }
+
+          // Force update AuthContext so it doesn't get stuck on old cached data
+          const updatedMember = {
+            ...(member || {}),
+            ...formData,
+            id: result.user.uid,
+            name: `${formData.firstName} ${formData.lastName}`.trim(),
+            phone: formData.phone,
+            churchId: activeChurchId,
+            primaryChurchId: activeChurchId,
+            userType: 'Member'
+          };
+          setMember(updatedMember as any);
+          
+          const AsyncStorage = require('@react-native-async-storage/async-storage').default;
+          await AsyncStorage.setItem('@cached_member', JSON.stringify(updatedMember));
+
+          navigation.replace('RegistrationSuccess');
+          return; // Stop execution, we are done
+        }
+      }
+
+      if (result?.user && contactId && !isSignUp) {
         setStatus('Linking church profile...');
         try {
           await FirestoreService.syncMember(contactId, result.user.uid);
 
           // Save profile details to Firestore
-          const firestore = require('@react-native-firebase/firestore').default;
           await firestore().collection('users').doc(result.user.uid).set({
             name: memberName || '',
             phone: phoneNumber || '',
@@ -61,13 +112,20 @@ export default function VerifyOtpScreen({ route, navigation }: VerifyOtpScreenPr
         }
       }
 
-      // After OTP confirmed: if user has no churchId yet, send them to ChurchSelection
+      // After OTP confirmed: if user has no primaryChurchId yet
       if (result?.user) {
-        const profile = await FirestoreService.getMemberProfile(result.user.uid);
-        if (!profile?.churchId) {
-          navigation.replace('ChurchSelection');
+        const { firestore } = require('../../services/firebaseConfig');
+        const userDoc = await firestore().collection('users').doc(result.user.uid).get();
+        const userData = userDoc.data();
+        
+        if (!userData?.primaryChurchId) {
+          if (activeChurchId) {
+            navigation.replace('SignUp');
+          } else {
+            navigation.replace('CreateChurch');
+          }
         }
-        // If churchId exists, AuthContext will detect the signed-in user and navigate to Main automatically
+        // If primaryChurchId exists, AuthContext will detect the signed-in user and navigate to Main automatically
       }
     } catch (error: any) {
       console.error('❌ Error:', error.code);

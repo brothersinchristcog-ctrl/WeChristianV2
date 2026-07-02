@@ -7,6 +7,7 @@ interface ChurchContextType {
   activeChurch: ChurchDetails | null;
   churchId: string | null;
   setChurchId: (id: string) => Promise<void>;
+  setActiveChurch: (church: ChurchDetails | null) => void;
   loading: boolean;
 }
 
@@ -54,6 +55,8 @@ export const ChurchProvider: React.FC<{ children: React.ReactNode }> = ({ childr
         setActiveChurch(details);
         setChurchIdState(id);
         await AsyncStorage.setItem('@cached_church_id', id);
+        // Sync with FirestoreService singleton
+        await require('../services/FirestoreService').default.setChurchId(id);
       } else {
         console.warn('Church not found for id:', id);
         setActiveChurch(null);
@@ -68,7 +71,7 @@ export const ChurchProvider: React.FC<{ children: React.ReactNode }> = ({ childr
   };
 
   return (
-    <ChurchContext.Provider value={{ activeChurch, churchId, setChurchId, loading }}>
+    <ChurchContext.Provider value={{ activeChurch, churchId, setChurchId, setActiveChurch, loading }}>
       {children}
     </ChurchContext.Provider>
   );

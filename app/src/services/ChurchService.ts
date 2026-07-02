@@ -12,10 +12,12 @@ export interface ChurchTheme {
 export interface ChurchDetails {
   id: string;
   name: string;
+  tagline?: string;
   subdomain: string;
   contactEmail: string;
   contactPhone?: string;
   address?: string;
+  aboutUs?: string;
   theme: ChurchTheme;
   features: {
     hasSermons: boolean;
@@ -36,6 +38,8 @@ export interface ChurchDetails {
     bankName?: string;
     accountNumber?: string;
     ifscCode?: string;
+    upis?: { id: string; name?: string; upiId: string; phonepeNumber?: string }[];
+    banks?: { id: string; name?: string; accountName: string; bankName: string; accountNumber: string; ifscCode: string }[];
   };
   subscriptionTier?: 'free' | 'standard' | 'premium';
   memberCount?: number;
@@ -92,6 +96,33 @@ class ChurchService {
     } catch (error) {
       console.error('Error fetching church by subdomain:', error);
       return null;
+    }
+  }
+
+  /**
+   * Update church details
+   */
+  async updateChurch(churchId: string, updates: Partial<ChurchDetails>): Promise<void> {
+    try {
+      // Don't accidentally write the ID field into the document
+      const { id, ...dataToUpdate } = updates as any;
+      await firestore().collection('churches').doc(churchId).update(dataToUpdate);
+    } catch (error) {
+      console.error('Error updating church details:', error);
+      throw error;
+    }
+  }
+
+  /**
+   * Create a new church (Super Admin only)
+   */
+  async createChurch(data: Omit<ChurchDetails, 'id'>): Promise<string> {
+    try {
+      const docRef = await firestore().collection('churches').add(data);
+      return docRef.id;
+    } catch (error) {
+      console.error('Error creating church:', error);
+      throw error;
     }
   }
 }

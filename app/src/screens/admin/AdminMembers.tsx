@@ -33,11 +33,11 @@ export default function AdminMembers() {
     }
     setError(null);
     try {
-      const data = await FirestoreService.getAdminMembers();
+      const data = await FirestoreService.getAllMembers();
       setMembers(data);
     } catch (err: any) {
       console.error('Error fetching members:', err);
-      setError(err?.message || 'Failed to fetch members from Salesforce');
+      setError(err?.message || 'Failed to fetch members');
     } finally {
       setLoading(false);
       setRefreshing(false);
@@ -48,10 +48,26 @@ export default function AdminMembers() {
     fetchMembers();
   }, []);
 
+  const handlePromoteAdmin = async (memberId: string) => {
+    try {
+      setLoading(true);
+      const success = await FirestoreService.updateMemberRole(memberId, 'admin');
+      if (success) {
+        setMembers(prev => prev.map(m => m.id === memberId ? { ...m, userType: 'admin' } : m));
+      } else {
+        setError('Failed to promote member');
+      }
+    } catch (err) {
+      console.error(err);
+    } finally {
+      setLoading(false);
+    }
+  };
+
   // Stats calculation
   const totalMembers = members.length;
-  const activeMembers = members.filter(m => m.Account?.Active__c === true).length;
-  const inactiveMembers = members.filter(m => m.Account?.Active__c !== true).length;
+  const activeMembers = members.length; // Assuming all firebase members are active for now
+  const inactiveMembers = 0;
 
   const handleToggleExpand = (id: string) => {
     setExpandedId(prev => (prev === id ? null : id));
@@ -68,75 +84,52 @@ export default function AdminMembers() {
       .toUpperCase();
   };
 
-  // Safely convert any value to a displayable string (prevents Firestore Timestamp crash)
-  const safeText = (value: any): string => {
-    if (value === null || value === undefined) return '';
-    if (typeof value === 'string') return value;
-    if (typeof value === 'number') return String(value);
-    if (typeof value === 'boolean') return value ? 'Yes' : 'No';
-    // Handle Firestore Timestamp object
-    if (value && typeof value === 'object' && '_seconds' in value) {
-      return formatTimestamp(value._seconds);
-    }
-    // Handle Firestore Timestamp with toDate method
-    if (value && typeof value.toDate === 'function') {
-      return formatDate(value.toDate());
-    }
-    return '';
-  };
-
-  const formatTimestamp = (seconds: number): string => {
+  const formatLastAppOpened = (dateVal: any) => {
+    if (!dateVal) return 'Never';
     try {
-      return formatDate(new Date(seconds * 1000));
-    } catch {
-      return '';
-    }
-  };
-
-  const formatDate = (date: Date): string => {
-    if (isNaN(date.getTime())) return '';
-    const months = ['Jan', 'Feb', 'Mar', 'Apr', 'May', 'Jun', 'Jul', 'Aug', 'Sep', 'Oct', 'Nov', 'Dec'];
-    const month = months[date.getMonth()];
-    const day = date.getDate();
-    const year = date.getFullYear();
-    let hours = date.getHours();
-    const minutes = date.getMinutes().toString().padStart(2, '0');
-    const ampm = hours >= 12 ? 'PM' : 'AM';
-    hours = hours % 12 || 12;
-    return `${month} ${day}, ${year} ${hours}:${minutes} ${ampm}`;
-  };
-
-  const formatLastAppOpened = (value: any): string => {
-    if (!value) return 'Never';
-    try {
-      // Handle Firestore Timestamp object
-      if (value && typeof value === 'object' && '_seconds' in value) {
-        return formatTimestamp(value._seconds);
+      let date: Date;
+      // Handle Firestore Timestamp objects
+      if (dateVal && typeof dateVal.toDate === 'function') {
+        date = dateVal.toDate();
+      } else if (dateVal && typeof dateVal._seconds === 'number') {
+        date = new Date(dateVal._seconds * 1000);
+      } else if (dateVal && typeof dateVal.seconds === 'number') {
+        date = new Date(dateVal.seconds * 1000);
+      } else {
+        date = new Date(dateVal);
       }
-      // Handle Firestore Timestamp with toDate()
-      if (value && typeof value.toDate === 'function') {
-        return formatDate(value.toDate());
-      }
-      // Handle ISO string
-      const date = new Date(value);
-      if (!isNaN(date.getTime())) return formatDate(date);
-      return 'Never';
+      
+      if (isNaN(date.getTime())) return String(dateVal);
+      
+      const months = ['Jan', 'Feb', 'Mar', 'Apr', 'May', 'Jun', 'Jul', 'Aug', 'Sep', 'Oct', 'Nov', 'Dec'];
+      const month = months[date.getMonth()];
+      const day = date.getDate();
+      const year = date.getFullYear();
+      
+      let hours = date.getHours();
+      const minutes = date.getMinutes().toString().padStart(2, '0');
+      const ampm = hours >= 12 ? 'PM' : 'AM';
+      hours = hours % 12;
+      hours = hours ? hours : 12; // the hour '0' should be '12'
+      
+      return `${month} ${day}, ${year} ${hours}:${minutes} ${ampm}`;
     } catch (e) {
-      return 'Never';
+      return String(dateVal);
     }
   };
 
   const filteredMembers = members.filter(m => {
-    const nameStr = m.Name || '';
-    const emailStr = m.Email || '';
-    const phoneStr = m.Phone || m.MobilePhone || '';
+    // Map Firebase schema fields
+    const nameStr = (m.name || m.firstName || '').toLowerCase();
+    const emailStr = (m.email || '').toLowerCase();
+    const phoneStr = m.phone || '';
     
     const matchesSearch = 
-      nameStr.toLowerCase().includes(searchQuery.toLowerCase()) ||
-      emailStr.toLowerCase().includes(searchQuery.toLowerCase()) ||
+      nameStr.includes(searchQuery.toLowerCase()) ||
+      emailStr.includes(searchQuery.toLowerCase()) ||
       phoneStr.includes(searchQuery);
 
-    const isActive = m.Account?.Active__c === true;
+    const isActive = true; // Assuming active by default in Firebase
     const matchesStatus = 
       statusFilter === 'All' || 
       (statusFilter === 'Active' && isActive) ||
@@ -149,7 +142,7 @@ export default function AdminMembers() {
     return (
       <View style={styles.loadingContainer}>
         <ActivityIndicator size="large" color="#1a2d5a" />
-        <Text style={{ marginTop: 10, color: '#1a2d5a', fontWeight: '600' }}>Loading production data...</Text>
+        <Text style={{ marginTop: 10, color: '#1a2d5a', fontWeight: '600' }}>Loading members...</Text>
       </View>
     );
   }
@@ -234,34 +227,41 @@ export default function AdminMembers() {
 
         {/* Member Cards List */}
         <View style={styles.membersList}>
-          {filteredMembers.map((member, index) => {
-            const memberId = member.Id || member.id || `member-${index}`;
-            const isExpanded = expandedId === memberId;
-            const accountId = member.AccountId || member.accountId;
-            const associated = accountId
-              ? members.filter(m => (m.AccountId || m.accountId) === accountId && (m.Id || m.id) !== memberId)
+          {filteredMembers.map((member) => {
+            const isExpanded = expandedId === member.id;
+            const associated = member.accountId
+              ? members.filter(m => m.accountId === member.accountId && m.id !== member.id)
               : [];
-            const isActive = member.Account?.Active__c === true || member.userType === 'Admin';
+            const isActive = true; // Placeholder for future active/inactive flag in Firebase
+            const displayName = (`${member.firstName || ''} ${member.lastName || ''}`.trim()) || member.name || 'Unknown';
+            const displayRole = member.userType || 'member';
 
             return (
               <View 
-                key={memberId} 
+                key={member.id} 
                 style={[styles.memberCard, isExpanded && styles.memberCardExpanded]}
               >
                 <TouchableOpacity 
                   style={styles.cardHeader} 
                   activeOpacity={0.7}
-                  onPress={() => handleToggleExpand(memberId)}
+                  onPress={() => handleToggleExpand(member.id)}
                 >
                   <View style={styles.profileSection}>
-                    <View style={styles.avatar}>
-                      <Text style={styles.avatarTxt}>{getInitials(safeText(member.Name || member.name))}</Text>
-                    </View>
+                    {member.profilePhoto ? (
+                      <View style={styles.avatar}>
+                        <Text style={styles.avatarTxt}>{getInitials(displayName)}</Text>
+                        {/* Placeholder for actual image if needed */}
+                      </View>
+                    ) : (
+                      <View style={styles.avatar}>
+                        <Text style={styles.avatarTxt}>{getInitials(displayName)}</Text>
+                      </View>
+                    )}
                     <View style={styles.nameSection}>
-                      <Text style={styles.name}>{safeText(member.Name || member.name) || 'Unknown'}</Text>
+                      <Text style={styles.name}>{displayName}</Text>
                       <View style={badgeRowStyles(isActive).badgeRow}>
                         <View style={styles.roleBadge}>
-                          <Text style={styles.roleTxt}>{safeText(member.User_Type__c || member.userType || member.role) || 'Member'}</Text>
+                          <Text style={styles.roleTxt}>{displayRole.toUpperCase()}</Text>
                         </View>
                         <View style={[
                           styles.statusBadge, 
@@ -284,17 +284,18 @@ export default function AdminMembers() {
                 <View style={styles.contactDetails}>
                   <View style={styles.contactRow}>
                     <Phone size={12} color="#6B7280" />
-                    <Text style={styles.contactTxt}>{safeText(member.Phone || member.MobilePhone || member.phone) || 'No Phone'}</Text>
+                    <Text style={styles.contactTxt}>{member.phone || 'No Phone'}</Text>
                   </View>
                   <View style={styles.contactRow}>
                     <Mail size={12} color="#6B7280" />
-                    <Text style={styles.contactTxt}>{safeText(member.Email || member.email) || 'No Email'}</Text>
+                    <Text style={styles.contactTxt}>{member.email || 'No Email'}</Text>
                   </View>
                 </View>
 
                 {isExpanded && (
                   <View style={styles.expandedContent}>
-                    
+
+
                     {/* App Activity Stats */}
                     <View style={styles.statsSubGrid}>
                       <View style={styles.subStatBox}>
@@ -302,7 +303,7 @@ export default function AdminMembers() {
                           <Clock size={12} color="#c0392b" />
                           <Text style={styles.subStatLabel}>Last App Opened</Text>
                         </View>
-                        <Text style={styles.subStatValue}>{formatLastAppOpened(member.Last_App_Opened__c || member.lastAppOpened)}</Text>
+                        <Text style={styles.subStatValue}>{formatLastAppOpened(member.lastLogin || member.lastAppOpened)}</Text>
                       </View>
                       <View style={styles.subStatBox}>
                         <View style={styles.subStatLabelRow}>
@@ -315,21 +316,32 @@ export default function AdminMembers() {
                       </View>
                     </View>
 
+                    {/* Admin Actions */}
+                    {displayRole !== 'admin' && (
+                      <TouchableOpacity 
+                        style={styles.promoteBtn}
+                        onPress={() => handlePromoteAdmin(member.id)}
+                      >
+                        <UserCheck size={14} color="#fff" />
+                        <Text style={styles.promoteBtnTxt}>Promote to Admin</Text>
+                      </TouchableOpacity>
+                    )}
+
                     {/* Household Members breakdown */}
                     <Text style={styles.householdHeader}>
-                      Household: {safeText(member.Account?.Name || member.cellGroup) || 'No Household Group'}
+                      HOUSEHOLD: {displayName.toUpperCase()}
                     </Text>
 
                     <View style={styles.householdList}>
                       {associated.length > 0 ? (
-                        associated.map((assoc, assocIndex) => (
-                          <View key={assoc.Id || assoc.id || `assoc-${assocIndex}`} style={styles.householdItem}>
+                        associated.map((assoc) => (
+                          <View key={assoc.id} style={styles.householdItem}>
                             <View style={styles.hiLeft}>
-                              <Text style={styles.hiName}>{safeText(assoc.Name || assoc.name)}</Text>
-                              <Text style={styles.hiEmail}>{safeText(assoc.Email || assoc.email || assoc.Phone || assoc.phone || assoc.MobilePhone) || 'No contact details'}</Text>
+                              <Text style={styles.hiName}>{(`${assoc.firstName || ''} ${assoc.lastName || ''}`.trim()) || assoc.name}</Text>
+                              <Text style={styles.hiEmail}>{assoc.email || assoc.phone || 'No contact details'}</Text>
                             </View>
                             <View style={styles.hiRight}>
-                              <Text style={styles.hiRelation}>{safeText(assoc.Title || assoc.User_Type__c || assoc.userType || assoc.role) || 'Member'}</Text>
+                              <Text style={styles.hiRelation}>{assoc.userType || 'Member'}</Text>
                             </View>
                           </View>
                         ))
@@ -346,7 +358,7 @@ export default function AdminMembers() {
           })}
         </View>
 
-        <Text style={styles.footerBranding}>Church of GOD Admin · Member Activity Logs</Text>
+        <Text style={styles.footerBranding}>Church Admin · Member Activity Logs</Text>
         <View style={{ height: 100 }} />
       </ScrollView>
     </View>
@@ -491,6 +503,22 @@ const styles = StyleSheet.create({
   subStatLabelRow: { flexDirection: 'row', alignItems: 'center', gap: 6, marginBottom: 4 },
   subStatLabel: { fontSize: 9, textTransform: 'uppercase', color: '#6B7280', fontWeight: '700' },
   subStatValue: { fontSize: 12, fontWeight: '700', color: '#1e293b' },
+
+  promoteBtn: {
+    backgroundColor: '#1a2d5a',
+    flexDirection: 'row',
+    alignItems: 'center',
+    justifyContent: 'center',
+    gap: 8,
+    paddingVertical: 10,
+    borderRadius: 8,
+    marginBottom: 12,
+  },
+  promoteBtnTxt: {
+    color: '#fff',
+    fontSize: 12,
+    fontWeight: '700'
+  },
 
   householdHeader: { 
     fontSize: 10, 

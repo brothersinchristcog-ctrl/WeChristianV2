@@ -66,12 +66,38 @@ export default function MembersScreen({ navigation }: any) {
   const [datePickerType, setDatePickerType] = useState<'birthdate' | 'anniversary' | null>(null);
 
   const fetchFamily = async () => {
-    if (!member || !member.accountId) {
+    if (!member) {
       setLoading(false);
       return;
     }
+    
+    // Default to the member's own ID as the household group ID if they don't have one
+    const targetAccountId = member.accountId || member.id;
+    
     try {
-      const contacts = await FirestoreService.getRelatedContacts(member.accountId);
+      const churchId = member.churchId || await FirestoreService.getChurchId();
+      if (!churchId) {
+        setLoading(false);
+        return;
+      }
+      
+      const contacts = await FirestoreService.getRelatedContacts(churchId, targetAccountId);
+      
+      // If the member isn't in the related contacts list because they don't have accountId set yet,
+      // add them manually to the display list so they see themselves.
+      const selfExists = contacts.some((c: any) => c.id === member.id || c.Id === member.id);
+      if (!selfExists) {
+        contacts.unshift({
+          Id: member.id,
+          id: member.id,
+          Name: member.name || `${member.firstName || ''} ${member.lastName || ''}`.trim(),
+          Phone: member.phone,
+          Email: member.email,
+          User_Type__c: member.userType || 'Member',
+          CreatedDate: member.joinDate ? new Date(member.joinDate).toISOString() : new Date().toISOString()
+        });
+      }
+      
       setRelatedContacts(contacts);
     } catch (err) {
       console.error('Error fetching household members:', err);
@@ -90,13 +116,19 @@ export default function MembersScreen({ navigation }: any) {
       Alert.alert('Validation', 'First name and Last name are required.');
       return;
     }
-    if (newMember.relation === 'Spouse' && !newMember.anniversaryDate) {
-      // It's good to have it, but maybe not strictly required.
-    }
     
     setSubmitting(true);
     try {
-      await FirestoreService.addFamilyMember(member!.accountId!, newMember);
+      const churchId = member!.churchId || await FirestoreService.getChurchId();
+      const targetAccountId = member!.accountId || member!.id;
+      
+      // If the member themselves doesn't have an accountId yet, update their profile
+      if (!member!.accountId && churchId) {
+        await FirestoreService.updateMemberProfile(churchId, member!.id, { accountId: targetAccountId });
+        member!.accountId = targetAccountId; // Update local state tentatively
+      }
+      
+      await FirestoreService.addFamilyMember(churchId!, targetAccountId, newMember);
       setShowSuccess(true);
       setShowAddModal(false);
       setNewMember({
@@ -171,15 +203,6 @@ export default function MembersScreen({ navigation }: any) {
             Please sign in to view your household details.
           </Text>
         </View>
-      ) : !member.accountId ? (
-        <View style={styles.emptyContainer}>
-          <Text style={[styles.emptyText, { color: isDark ? '#fff' : '#1a2d5a' }]}>
-            No Household Linked
-          </Text>
-          <Text style={styles.emptySubText}>
-            Your profile is not linked to any household. Please contact the administrator.
-          </Text>
-        </View>
       ) : (
         <ScrollView showsVerticalScrollIndicator={false} contentContainerStyle={styles.scroll}>
           {relatedContacts.length === 0 ? (
@@ -189,12 +212,30 @@ export default function MembersScreen({ navigation }: any) {
               </Text>
             </View>
           ) : (
-            relatedContacts.map((c) => {
-              const isCurrentUser = c.Id === member.id;
-              const contactPhone = c.Phone || c.MobilePhone;
+            relatedContacts.map((c, index) => {
+              const contactId = c.id || c.Id;
+              const isCurrentUser = contactId === member.id;
+              const contactPhone = c.Phone || c.MobilePhone || c.phone;
+              const contactEmail = c.Email || c.email;
+              
+              let contactDate = null;
+              const rawDate = c.CreatedDate || c.joinDate || c.createdAt;
+              if (rawDate) {
+                if (typeof rawDate.toDate === 'function') {
+                  contactDate = rawDate.toDate();
+                } else if (typeof rawDate._seconds === 'number') {
+                  contactDate = new Date(rawDate._seconds * 1000);
+                } else if (typeof rawDate.seconds === 'number') {
+                  contactDate = new Date(rawDate.seconds * 1000);
+                } else {
+                  contactDate = new Date(rawDate);
+                }
+              }
+              
+              const contactName = (`${c.FirstName || c.firstName || ''} ${c.LastName || c.lastName || ''}`.trim()) || c.Name || c.name || 'Unknown';
               return (
                 <View 
-                  key={c.Id} 
+                  key={contactId || index.toString()} 
                   style={[
                     styles.memberCard, 
                     { 
@@ -206,13 +247,13 @@ export default function MembersScreen({ navigation }: any) {
                 >
                   <View style={styles.cardHeader}>
                     <View style={[styles.avatarCircle, isCurrentUser && styles.avatarCircleActive]}>
-                      <Text style={styles.avatarText}>{getInitials(c.Name)}</Text>
+                      <Text style={styles.avatarText}>{getInitials(contactName)}</Text>
                     </View>
 
                     <View style={styles.memberMeta}>
                       <View style={styles.nameRow}>
                         <Text style={[styles.memberName, { color: isDark ? '#fff' : '#1a2d5a' }]}>
-                          {c.Name || `${c.FirstName || ''} ${c.LastName || ''}`.trim()}
+                          {contactName}
                         </Text>
                         {isCurrentUser && (
                           <View style={styles.selfBadge}>
@@ -222,7 +263,7 @@ export default function MembersScreen({ navigation }: any) {
                       </View>
 
                       <View style={styles.roleBadge}>
-                        <Text style={styles.roleBadgeTxt}>{c.User_Type__c || 'Member'}</Text>
+                        <Text style={styles.roleBadgeTxt}>{(c.userType || c.User_Type__c || 'Member').toString().charAt(0).toUpperCase() + (c.userType || c.User_Type__c || 'Member').toString().slice(1).toLowerCase()}</Text>
                       </View>
                     </View>
                   </View>
@@ -247,10 +288,10 @@ export default function MembersScreen({ navigation }: any) {
                       </TouchableOpacity>
                     )}
 
-                    {c.Email && (
+                    {contactEmail && (
                       <TouchableOpacity 
                         style={styles.detailRow} 
-                        onPress={() => handleSendEmail(c.Email)}
+                        onPress={() => handleSendEmail(contactEmail)}
                       >
                         <View style={styles.iconBgMail}>
                           <Mail size={14} color="#0369a1" />
@@ -258,13 +299,13 @@ export default function MembersScreen({ navigation }: any) {
                         <View>
                           <Text style={styles.detailLabel}>Email Address</Text>
                           <Text style={[styles.detailValue, { color: isDark ? '#cbd5e1' : '#334155' }]}>
-                            {c.Email}
+                            {contactEmail}
                           </Text>
                         </View>
                       </TouchableOpacity>
                     )}
 
-                    {c.CreatedDate && (
+                    {contactDate && !isNaN(contactDate.getTime()) && (
                       <View style={styles.detailRow}>
                         <View style={styles.iconBgCal}>
                           <Calendar size={14} color="#b45309" />
@@ -272,7 +313,7 @@ export default function MembersScreen({ navigation }: any) {
                         <View>
                           <Text style={styles.detailLabel}>Registered Since</Text>
                           <Text style={[styles.detailValue, { color: isDark ? '#cbd5e1' : '#334155' }]}>
-                            {new Date(c.CreatedDate).toLocaleDateString('en-US', {
+                            {contactDate.toLocaleDateString('en-US', {
                               month: 'long',
                               year: 'numeric'
                             })}
@@ -289,7 +330,7 @@ export default function MembersScreen({ navigation }: any) {
       )}
 
       {/* ── Global FAB ── */}
-      {member && member.accountId && !loading && (
+      {member && !loading && (
         <TouchableOpacity 
           style={styles.addBtnFloating} 
           onPress={() => setShowAddModal(true)}

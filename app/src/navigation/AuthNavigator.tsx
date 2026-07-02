@@ -21,9 +21,14 @@ export type AuthStackParamList = {
 
 const Stack = createNativeStackNavigator<AuthStackParamList>();
 
+import { useChurch } from '../context/ChurchContext';
+
 export default function AuthNavigator() {
+  const { churchId } = useChurch();
+
   return (
     <Stack.Navigator
+      initialRouteName={churchId ? "Login" : "ChurchSelection"}
       screenOptions={{
         headerStyle: { backgroundColor: Theme.Colors.primary },
         headerTintColor: '#fff',

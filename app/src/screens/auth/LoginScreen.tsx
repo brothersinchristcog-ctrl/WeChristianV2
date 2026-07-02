@@ -18,6 +18,7 @@ import { AuthStackParamList } from '../../navigation/AuthNavigator';
 import Theme from '../../theme/Theme';
 import FirestoreService from '../../services/FirestoreService';
 import { useAuth } from '../../context/AuthContext';
+import { useChurch } from '../../context/ChurchContext';
 import { SafeAreaView } from 'react-native-safe-area-context';
 import { ChevronLeft, Phone, User, LogIn, ArrowRight } from 'lucide-react-native';
 
@@ -27,6 +28,7 @@ type LoginScreenProps = {
 
 export default function LoginScreen({ navigation }: LoginScreenProps) {
   const { signInAnonymously } = useAuth();
+  const { activeChurch } = useChurch();
   const [showPhoneInput, setShowPhoneInput] = useState(false);
   const [phoneNumber, setPhoneNumber] = useState('');
   const [loading, setLoading] = useState(false);
@@ -35,6 +37,8 @@ export default function LoginScreen({ navigation }: LoginScreenProps) {
   const [contactId, setContactId] = useState<string | undefined>(undefined);
   const [isMember, setIsMember] = useState(false);
 
+  const [isCreatingChurch, setIsCreatingChurch] = useState(false);
+
   // ── Auto-lookup member as user types ──
   useEffect(() => {
     const checkMembership = async () => {
@@ -42,7 +46,8 @@ export default function LoginScreen({ navigation }: LoginScreenProps) {
       if (cleanNum.length === 10) {
         setVerifyingStatus('Checking membership...');
         try {
-          const result = await FirestoreService.checkContactExists(cleanNum);
+          // Explicitly pass activeChurch?.id so the query knows which church to search in
+          const result = await FirestoreService.checkContactExists(cleanNum, activeChurch?.id);
           if (result && result.exists) {
             setMemberName(result.member?.firstName || result.member?.name || '');
             setContactId(result.member?.id);
@@ -115,29 +120,45 @@ export default function LoginScreen({ navigation }: LoginScreenProps) {
         <View style={styles.landingTop}>
           <View style={styles.logoCircleLarge}>
             <Image 
-              source={require('../../../assets/logo.png')} 
+              source={activeChurch?.theme?.logoUrl ? { uri: activeChurch.theme.logoUrl } : require('../../../assets/logo.png')} 
               style={styles.logoImageLarge}
             />
           </View>
-          <Text style={styles.churchTitleLarge}>Church of God</Text>
-          <Text style={styles.mottoTextLarge}>A Gateway to Heaven</Text>
-          <Text style={styles.teluguTaglineLarge}>KRISTHU NANDU SAHODARULU SAHAVASAMU</Text>
+          <Text style={styles.churchTitleLarge}>{activeChurch?.name || 'We Christian'}</Text>
+          <Text style={styles.mottoTextLarge}>{activeChurch?.tagline || 'Connect with your community'}</Text>
         </View>
 
         <View style={styles.landingBottom}>
           <TouchableOpacity 
             style={styles.mainActionBtn}
-            onPress={() => setShowPhoneInput(true)}
+            onPress={() => {
+              setIsCreatingChurch(false);
+              setShowPhoneInput(true);
+            }}
           >
-            <Text style={styles.mainActionBtnTxt}>Sign in</Text>
+            <Text style={styles.mainActionBtnTxt}>Sign In</Text>
           </TouchableOpacity>
 
-          <TouchableOpacity 
-            style={styles.signUpBtn}
-            onPress={() => navigation.navigate('SignUp')}
-          >
-            <Text style={styles.signUpBtnTxt}>Sign up</Text>
-          </TouchableOpacity>
+          {activeChurch && (
+            <TouchableOpacity 
+              style={styles.signUpBtn}
+              onPress={() => navigation.navigate('SignUp')}
+            >
+              <Text style={styles.signUpBtnTxt}>Sign up</Text>
+            </TouchableOpacity>
+          )}
+
+          {!activeChurch && (
+            <TouchableOpacity 
+              style={styles.signUpBtn}
+              onPress={() => {
+                setIsCreatingChurch(true);
+                setShowPhoneInput(true);
+              }}
+            >
+              <Text style={styles.signUpBtnTxt}>Register Church</Text>
+            </TouchableOpacity>
+          )}
 
           <TouchableOpacity 
             style={styles.guestLink}
@@ -165,8 +186,12 @@ export default function LoginScreen({ navigation }: LoginScreenProps) {
         </TouchableOpacity>
 
         <View style={styles.authContent}>
-          <Text style={styles.authTitle}>Welcome Back</Text>
-          <Text style={styles.authSub}>Sign in to your member account</Text>
+          <Text style={styles.authTitle}>
+            {activeChurch ? 'Welcome Back' : (isCreatingChurch ? 'Register Church' : 'Sign In')}
+          </Text>
+          <Text style={styles.authSub}>
+            {activeChurch ? 'Sign in to your member account' : (isCreatingChurch ? 'Verify your phone number to register a new church' : 'Verify your phone number to continue')}
+          </Text>
 
           <View style={styles.inputSection}>
             <Text style={styles.inputLabel}>PHONE NUMBER</Text>
@@ -199,9 +224,9 @@ export default function LoginScreen({ navigation }: LoginScreenProps) {
           )}
 
           <TouchableOpacity 
-            style={[styles.submitBtn, (!isMember || loading) && styles.submitBtnDisabled]}
+            style={[styles.submitBtn, loading && styles.submitBtnDisabled]}
             onPress={handleSendCode}
-            disabled={!isMember || loading}
+            disabled={loading}
           >
             {loading ? (
               <ActivityIndicator color="#fff" />

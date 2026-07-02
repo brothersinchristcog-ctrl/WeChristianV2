@@ -215,30 +215,19 @@ export default function AdminNotificationBroadcast() {
 
       // Pushed to broadcasts collection so it appears live on UpdatesScreen immediately!
       try {
+        const churchId = await FirestoreService.getChurchId();
         await addDoc(collection(db, 'broadcasts'), {
           title: manualBroadcast.title,
           content: manualBroadcast.message,
           date: dateStr,
           type: 'announcement',
+          targetChurchId: churchId,
           createdAt: serverTimestamp()
         });
       } catch (fErr) {
         console.warn('⚠️ Firestore Sync (broadcasts) bypassed due to Security Rules:', fErr);
       }
       
-      // Save to Salesforce Org
-      try {
-        await FirestoreService.createNotificationBroadcast({
-          title: manualBroadcast.title,
-          message: manualBroadcast.message,
-          type: 'Announcement',
-          sendTo: manualBroadcast.sendTo || 'All'
-        });
-      } catch (sfErr: any) {
-        console.error('❌ Salesforce Log failed:', sfErr);
-        Alert.alert('Salesforce Sync Error', sfErr.message || 'Unknown error saving to Salesforce.');
-      }
-
       setLastBroadcast(newBroadcast);
       Alert.alert('Broadcast Sent', `Message successfully sent to ${manualBroadcast.sendTo}!`);
       setManualBroadcast({ ...manualBroadcast, title: '', message: '' });
@@ -273,11 +262,13 @@ export default function AdminNotificationBroadcast() {
 
       // Save to Firestore dynamic updates
       try {
+        const churchId = await FirestoreService.getChurchId();
         await addDoc(collection(db, 'broadcasts'), {
           title: `🚨 EMERGENCY MEETING: ${emergencyAlert.title}`,
           content: `⏰ TIME: ${fullTimeStr}\n📍 LOCATION: ${emergencyAlert.location}\n\n${emergencyAlert.message}`,
           date: dateStr,
           type: 'emergency',
+          targetChurchId: churchId,
           createdAt: serverTimestamp()
         });
       } catch (fErr) {
@@ -305,19 +296,6 @@ export default function AdminNotificationBroadcast() {
         }, { merge: true });
       } catch (fErr) {
         console.warn('⚠️ Firestore Sync (lastBroadcast) bypassed due to Security Rules:', fErr);
-      }
-
-      // Save to Salesforce Org
-      try {
-        await FirestoreService.createNotificationBroadcast({
-          title: `🚨 EMERGENCY MEETING: ${emergencyAlert.title}`,
-          message: `⏰ TIME: ${fullTimeStr}\n📍 LOCATION: ${emergencyAlert.location}\n\n${emergencyAlert.message}`,
-          type: 'Emergency',
-          sendTo: 'All'
-        });
-      } catch (sfErr: any) {
-        console.error('❌ Salesforce Log failed:', sfErr);
-        Alert.alert('Salesforce Sync Error', sfErr.message || 'Unknown error saving to Salesforce.');
       }
 
       setLastBroadcast(newBroadcast);
@@ -349,11 +327,14 @@ export default function AdminNotificationBroadcast() {
               onPress: async () => {
                 const dateStr = new Date().toLocaleDateString('en-US', { month: 'long', day: 'numeric' });
                 try {
+                  const churchId = await FirestoreService.getChurchId();
                   const db = getFirestore(); await addDoc(collection(db, 'broadcasts'), {
                     title: '🎂 Happy Birthday!',
                     content: `Dear Member, ${birthdayNotif.greeting}`,
                     date: dateStr,
                     type: 'birthday',
+                    silent: true,
+                    targetChurchId: churchId,
                     createdAt: serverTimestamp()
                   });
                 } catch (fErr) {
@@ -370,11 +351,14 @@ export default function AdminNotificationBroadcast() {
         
         for (const member of bdays) {
           try {
+            const churchId = await FirestoreService.getChurchId();
             const db = getFirestore(); await addDoc(collection(db, 'broadcasts'), {
               title: `🎂 Happy Birthday, ${member.name}!`,
               content: birthdayNotif.greeting,
               date: dateStr,
               type: 'birthday',
+              silent: true,
+              targetChurchId: churchId,
               createdAt: serverTimestamp()
             });
           } catch (fErr) {
@@ -406,11 +390,14 @@ export default function AdminNotificationBroadcast() {
               onPress: async () => {
                 const dateStr = new Date().toLocaleDateString('en-US', { month: 'long', day: 'numeric' });
                 try {
+                  const churchId = await FirestoreService.getChurchId();
                   const db = getFirestore(); await addDoc(collection(db, 'broadcasts'), {
                     title: '💐 Happy Wedding Anniversary!',
                     content: `Wishing all couples celebrating their wedding anniversary today a wonderful year filled with love & joy! ${anniversaryNotif.greeting}`,
                     date: dateStr,
                     type: 'anniversary',
+                    silent: true,
+                    targetChurchId: churchId,
                     createdAt: serverTimestamp()
                   });
                 } catch (fErr) {
@@ -425,11 +412,14 @@ export default function AdminNotificationBroadcast() {
         const dateStr = new Date().toLocaleDateString('en-US', { month: 'long', day: 'numeric' });
         for (const ann of annivs) {
           try {
+            const churchId = await FirestoreService.getChurchId();
             const db = getFirestore(); await addDoc(collection(db, 'broadcasts'), {
               title: `💐 Happy Wedding Anniversary!`,
               content: `Wishing Brother ${ann.husband} & Sister ${ann.wife} a wonderful ${ann.years}th Wedding Anniversary! ${anniversaryNotif.greeting}`,
               date: dateStr,
               type: 'anniversary',
+              silent: true,
+              targetChurchId: churchId,
               createdAt: serverTimestamp()
             });
           } catch (fErr) {

@@ -7,7 +7,6 @@ import {
   Calendar, 
   Mic, 
   PlusSquare, 
-  Eye, 
   Bell, 
   MapPin, 
   Heart,
@@ -17,9 +16,11 @@ import {
   Gift,
   Smartphone,
   Info,
-  Phone
+  Phone,
+  Settings
 } from 'lucide-react-native';
 import { useAuth } from '../context/AuthContext';
+import { useChurch } from '../context/ChurchContext';
 import Theme from '../theme/Theme';
 import { AdminTabContext } from '../context/AdminTabContext';
 
@@ -29,7 +30,6 @@ import AdminPromiseEditor from '../screens/admin/AdminPromiseEditor';
 import AdminPromiseCalendar from '../screens/admin/AdminPromiseCalendar';
 import AdminSermonList from '../screens/admin/AdminSermonList';
 import AdminSermonEditor from '../screens/admin/AdminSermonEditor';
-import AdminAppPreview from '../screens/admin/AdminAppPreview';
 import AdminNotificationBroadcast from '../screens/admin/AdminNotificationBroadcast';
 import AdminEventList from '../screens/admin/AdminEventList';
 import AdminEventEditor from '../screens/admin/AdminEventEditor';
@@ -39,12 +39,16 @@ import AdminMembers from '../screens/admin/AdminMembers';
 import AdminCelebrations from '../screens/admin/AdminCelebrations';
 import AdminAboutUsEditor from '../screens/admin/AdminAboutUsEditor';
 import AdminContactUsEditor from '../screens/admin/AdminContactUsEditor';
+import AdminChurchSettings from '../screens/admin/AdminChurchSettings';
 import PastorEventDashboard from '../screens/admin/pastor_events/PastorEventDashboard';
+import SuperAdminDashboard from '../screens/admin/SuperAdminDashboard';
+import { Shield } from 'lucide-react-native';
 
 const { width } = Dimensions.get('window');
 
 export default function AdminNavigator({ navigation }: any) {
   const { signOut, user, member, setViewMode } = useAuth();
+  const { activeChurch } = useChurch();
   const [activeTab, setActiveTab] = useState(0);
   const [tabHistory, setTabHistory] = useState<number[]>([]);
   const [editingData, setEditingData] = useState(null);
@@ -84,7 +88,8 @@ export default function AdminNavigator({ navigation }: any) {
     { name: 'Celebrations', icon: Gift, component: AdminCelebrations },
     { name: 'About Us', icon: Info, component: AdminAboutUsEditor },
     { name: 'Contact Us', icon: Phone, component: AdminContactUsEditor },
-    { name: 'App Preview', icon: Eye, component: AdminAppPreview },
+    { name: 'Church Settings', icon: Settings, component: AdminChurchSettings },
+    ...(member?.userType === 'super_admin' ? [{ name: 'Super Admin', icon: Shield, component: SuperAdminDashboard }] : []),
   ];
 
   const ActiveComponent = tabs[activeTab].component;
@@ -101,13 +106,13 @@ export default function AdminNavigator({ navigation }: any) {
             {/* Back button removed from global header — handled per editor screen */}
             <View style={styles.logoCircle}>
               <Image 
-                source={require('../../assets/logo.png')} 
+                source={activeChurch?.theme?.logoUrl ? { uri: activeChurch.theme.logoUrl } : require('../../assets/logo.png')} 
                 style={styles.logoImage}
-                resizeMode="contain"
+                resizeMode="cover"
               />
             </View>
             <View style={styles.headerText}>
-              <Text style={styles.headerTitle}>Church of GOD</Text>
+              <Text style={styles.headerTitle}>{activeChurch?.name || 'Admin Panel'}</Text>
               <Text style={styles.headerSub}>Admin Dashboard</Text>
             </View>
             <View style={styles.roleBadge}>
@@ -133,10 +138,10 @@ export default function AdminNavigator({ navigation }: any) {
               {/* Profile Section */}
               <View style={styles.drawerProfileSection}>
                 <View style={styles.drawerAvatar}>
-                  <Image source={require('../../assets/logo.png')} style={{ width: 56, height: 56 }} resizeMode="cover" />
+                  <Image source={activeChurch?.theme?.logoUrl ? { uri: activeChurch.theme.logoUrl } : require('../../assets/logo.png')} style={{ width: 56, height: 56 }} resizeMode="cover" />
                 </View>
                 <View>
-                  <Text style={styles.drawerName}>Church of GOD</Text>
+                  <Text style={styles.drawerName}>{activeChurch?.name || 'Your Church'}</Text>
                   <Text style={styles.drawerEmail}>{member?.name || user?.displayName || 'Admin Member'}</Text>
                 </View>
               </View>

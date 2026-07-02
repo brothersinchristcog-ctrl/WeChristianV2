@@ -16,6 +16,8 @@ import firestore from '@react-native-firebase/firestore';
 import { AdminTabContext } from '../../context/AdminTabContext';
 
 interface AboutUsData {
+  churchName: string;
+  churchSubtitle: string;
   description: string;
   mission: string;
   vision: string;
@@ -23,12 +25,11 @@ interface AboutUsData {
 }
 
 const DEFAULT_ABOUT: AboutUsData = {
-  description:
-    'Welcome to Brothers in Christ Fellowship — Church of God. We are a Spirit-filled, family-oriented congregation dedicated to sharing the love of Jesus Christ with our community and the world.',
-  mission:
-    'To share the Gospel of Jesus Christ, make disciples of all nations, and serve our community with love and compassion.',
-  vision:
-    'To see every family in our community transformed by the power of God and rooted in His Word.',
+  churchName: '',
+  churchSubtitle: '',
+  description: '',
+  mission: '',
+  vision: '',
 };
 
 export default function AdminAboutUsEditor() {
@@ -47,6 +48,8 @@ export default function AdminAboutUsEditor() {
       if (doc.exists()) {
         const d = doc.data() as AboutUsData;
         const fetched: AboutUsData = {
+          churchName: d.churchName || DEFAULT_ABOUT.churchName,
+          churchSubtitle: d.churchSubtitle || DEFAULT_ABOUT.churchSubtitle,
           description: d.description || DEFAULT_ABOUT.description,
           mission: d.mission || DEFAULT_ABOUT.mission,
           vision: d.vision || DEFAULT_ABOUT.vision,
@@ -69,6 +72,7 @@ export default function AdminAboutUsEditor() {
   const handleCancel = () => { setDraft({ ...data }); setIsEditing(false); };
 
   const handleSave = async () => {
+    if (!draft.churchName.trim()) { Alert.alert('Validation', 'Church name cannot be empty.'); return; }
     if (!draft.description.trim()) { Alert.alert('Validation', 'Description cannot be empty.'); return; }
     setSaving(true);
     try {
@@ -173,6 +177,30 @@ export default function AdminAboutUsEditor() {
               <View style={[styles.modeBanner, { backgroundColor: '#fef3c7' }]}>
                 <Edit2 size={13} color="#b45309" />
                 <Text style={[styles.modeBannerTxt, { color: '#b45309' }]}>Editing — tap Save to update</Text>
+              </View>
+
+              <View style={styles.fieldCard}>
+                <Text style={styles.fieldLabel}>⛪ Church Name</Text>
+                <Text style={styles.fieldHint}>Main name displayed at the top of About Us.</Text>
+                <TextInput
+                  style={styles.input}
+                  value={draft.churchName}
+                  onChangeText={(t) => setDraft((p) => ({ ...p, churchName: t }))}
+                  placeholder="E.g. Church of GOD"
+                  placeholderTextColor="#94a3b8"
+                />
+              </View>
+
+              <View style={styles.fieldCard}>
+                <Text style={styles.fieldLabel}>🏷️ Church Subtitle</Text>
+                <Text style={styles.fieldHint}>Sub-name or congregation name shown below the main name.</Text>
+                <TextInput
+                  style={styles.input}
+                  value={draft.churchSubtitle}
+                  onChangeText={(t) => setDraft((p) => ({ ...p, churchSubtitle: t }))}
+                  placeholder="E.g. Brothers in Christ Fellowship"
+                  placeholderTextColor="#94a3b8"
+                />
               </View>
 
               <View style={styles.fieldCard}>

@@ -25,21 +25,31 @@ import {
   Heart
 } from 'lucide-react-native';
 import FirestoreService, { FirestoreVideo } from '../services/FirestoreService';
+import { useChurch } from '../context/ChurchContext';
 
 const { width } = Dimensions.get('window');
+
+const extractYoutubeId = (url: string) => {
+  if (!url || typeof url !== 'string') return '';
+  const cleanUrl = url.trim();
+  const match = cleanUrl.match(/(?:youtu\.be\/|youtube\.com\/(?:embed\/|v\/|watch\?v=|watch\?.+&v=|shorts\/|live\/))([\w-]+)/);
+  const id = match ? match[1] : cleanUrl;
+  return id;
+};
 
 export default function SermonVideoScreen({ navigation, route }: any) {
   const [videos, setVideos] = useState<FirestoreVideo[]>([]);
   const [loading, setLoading] = useState(true);
   const [playing, setPlaying] = useState(false);
   const [activeVideo, setActiveVideo] = useState<FirestoreVideo | null>(null);
+  const { activeChurch } = useChurch();
 
   // Initial load from params or fetch
   useEffect(() => {
     const init = async () => {
       const promiseData = await FirestoreService.getSermons(50);
       const data: FirestoreVideo[] = promiseData
-        .filter(p => p.youtubeId && p.youtubeId !== 'mock')
+        .filter(p => p.youtubeId && p.youtubeId.trim() !== '' && p.youtubeId !== 'mock')
         .map(p => ({
           id: p.id,
           title: p.title || 'Sermon',
@@ -50,25 +60,17 @@ export default function SermonVideoScreen({ navigation, route }: any) {
         }));
       setVideos(data);
       
-      const paramId = route?.params?.youtubeId;
-      const paramTitle = route?.params?.videoTitle;
-      const paramPastor = route?.params?.pastor;
+      const sermonData = route?.params?.sermonData;
 
-      if (paramId) {
-        const found = data.find(v => v.youtubeId === paramId);
-        if (found) {
-          setActiveVideo(found);
-        } else {
-          // If not in archive, create a direct video object using passed params
-          setActiveVideo({
-            id: 'direct-' + paramId,
-            title: paramTitle || 'Sermon',
-            youtubeId: paramId,
-            date: 'Today',
-            duration: '',
-            pastor: paramPastor || 'Brother Y. Rajesh'
-          });
-        }
+      if (sermonData) {
+        setActiveVideo({
+          id: sermonData.id || 'direct',
+          title: sermonData.title || 'Sermon',
+          youtubeId: sermonData.youtubeId || '',
+          date: sermonData.date || 'Today',
+          duration: sermonData.duration || '',
+          pastor: sermonData.pastor || 'Brother Y. Rajesh'
+        });
       } else if (data.length > 0) {
         setActiveVideo(data[0]);
       }
@@ -85,7 +87,7 @@ export default function SermonVideoScreen({ navigation, route }: any) {
     if (!activeVideo) return;
     try {
       await Share.share({
-        message: `Watch this powerful teaching: "${activeVideo.title}" - https://youtu.be/${activeVideo.youtubeId}`,
+        message: `Watch this powerful teaching: "${activeVideo.title}" - https://youtu.be/${extractYoutubeId(activeVideo.youtubeId)}`,
       });
     } catch (error) {
       console.error('Error sharing:', error);
@@ -93,7 +95,8 @@ export default function SermonVideoScreen({ navigation, route }: any) {
   };
 
   const handleSubscribe = () => {
-    Linking.openURL('https://www.youtube.com/@Brothersinchristfellowship');
+    const yUrl = activeChurch?.socialLinks?.youtube || 'https://www.youtube.com';
+    Linking.openURL(yUrl);
   };
 
   if (loading && !activeVideo) {
@@ -103,6 +106,9 @@ export default function SermonVideoScreen({ navigation, route }: any) {
       </View>
     );
   }
+
+  const finalVideoId = extractYoutubeId(activeVideo?.youtubeId || '');
+  const hasValidVideo = finalVideoId.length > 0;
 
   return (
     <View style={styles.container}>
@@ -125,25 +131,32 @@ export default function SermonVideoScreen({ navigation, route }: any) {
         
         {/* ── Video Player ── */}
         <View style={styles.playerSection}>
-          <YoutubePlayer
-            height={width * 0.56}
-            play={playing}
-            videoId={activeVideo?.youtubeId || ''}
-            onChangeState={onStateChange}
-          />
+          {hasValidVideo ? (
+            <YoutubePlayer
+              height={width * 0.56}
+              play={playing}
+              videoId={finalVideoId}
+              onChangeState={onStateChange}
+            />
+          ) : (
+            <View style={{ height: width * 0.56, justifyContent: 'center', alignItems: 'center', backgroundColor: '#111827' }}>
+              <Video size={40} color="#374151" />
+              <Text style={{ color: '#9CA3AF', marginTop: 10, fontSize: 12, fontWeight: '600' }}>No Video Link Available</Text>
+            </View>
+          )}
         </View>
 
         {/* ── Video Details ── */}
         <View style={styles.videoDetails}>
-          <Text style={styles.videoTitle}>{activeVideo?.title || 'Walking in the Spirit'}</Text>
+          <Text style={styles.videoTitle}>{activeVideo?.title || 'Sermon'}</Text>
           <View style={styles.metaRow}>
             <View style={styles.metaItem}>
               <Play size={12} color="#c0392b" fill="#c0392b" />
               <Text style={styles.metaTxt}>Featured Teaching</Text>
             </View>
             <View style={styles.metaItem}>
-              <Clock size={12} color="#6B7280" />
-              <Text style={styles.metaTxt}>{activeVideo?.date ? (activeVideo.date === 'Today' ? 'Today' : new Date(activeVideo.date).toLocaleDateString('en-US', { month: 'short', day: 'numeric', year: 'numeric' })) : 'Today'}</Text>
+              <Clock size={12} color="#9CA3AF" />
+              <Text style={styles.metaTxt}>{activeVideo?.date || 'Today'}</Text>
             </View>
           </View>
 
@@ -151,7 +164,7 @@ export default function SermonVideoScreen({ navigation, route }: any) {
             <View style={styles.pastorAv}><Text style={styles.pastorAvTxt}>P</Text></View>
             <View style={{ flex: 1 }}>
               <Text style={styles.pastorName}>{activeVideo?.pastor || 'Brother Y. Rajesh'}</Text>
-              <Text style={styles.pastorRole}>Main Speaker · COG</Text>
+              <Text style={styles.pastorRole}>Main Speaker</Text>
             </View>
             <TouchableOpacity style={styles.subBtn} onPress={handleSubscribe}>
               <Text style={styles.subBtnTxt}>Subscribe</Text>
@@ -167,26 +180,32 @@ export default function SermonVideoScreen({ navigation, route }: any) {
         {/* ── Archive ── */}
         <Text style={styles.secLbl}>PAST SERMONS</Text>
         <View style={styles.archiveList}>
-          {videos.filter(v => v.id !== activeVideo?.id).map((video) => (
-            <TouchableOpacity 
-              key={video.id} 
-              style={styles.archiveItem}
-              onPress={() => setActiveVideo(video)}
-            >
-              <View style={styles.thumbBox}>
-                <Image 
-                  source={{ uri: `https://img.youtube.com/vi/${video.youtubeId}/mqdefault.jpg` }} 
-                  style={styles.thumb} 
-                />
-                <View style={styles.playIcon}><Play size={10} color="#fff" fill="#fff" /></View>
-              </View>
-              <View style={styles.itemInfo}>
-                <Text style={styles.itemTitle} numberOfLines={1}>{video.title}</Text>
-                <Text style={styles.itemMeta}>{video.date ? new Date(video.date).toLocaleDateString('en-US', { month: 'short', day: 'numeric' }) : ''} · {video.duration}</Text>
-              </View>
-              <ChevronRight size={16} color="#D1D5DB" />
-            </TouchableOpacity>
-          ))}
+          {videos.filter(v => v.id !== activeVideo?.id).length === 0 ? (
+            <View style={{ padding: 20, alignItems: 'center' }}>
+              <Text style={{ color: '#9CA3AF', fontSize: 12, fontStyle: 'italic' }}>No other past video sermons available.</Text>
+            </View>
+          ) : (
+            videos.filter(v => v.id !== activeVideo?.id).map((video) => (
+              <TouchableOpacity 
+                key={video.id} 
+                style={styles.archiveItem}
+                onPress={() => setActiveVideo(video)}
+              >
+                <View style={styles.thumbBox}>
+                  <Image 
+                    source={{ uri: `https://img.youtube.com/vi/${extractYoutubeId(video.youtubeId)}/mqdefault.jpg` }} 
+                    style={styles.thumb} 
+                  />
+                  <View style={styles.playIcon}><Play size={10} color="#fff" fill="#fff" /></View>
+                </View>
+                <View style={styles.itemInfo}>
+                  <Text style={styles.itemTitle} numberOfLines={1}>{video.title}</Text>
+                  <Text style={styles.itemMeta}>{video.date ? new Date(video.date).toLocaleDateString('en-US', { month: 'short', day: 'numeric' }) : ''} · {video.duration}</Text>
+                </View>
+                <ChevronRight size={16} color="#D1D5DB" />
+              </TouchableOpacity>
+            ))
+          )}
         </View>
 
       </ScrollView>

@@ -50,6 +50,7 @@ import firestore from '@react-native-firebase/firestore';
 import { useNavigation } from '@react-navigation/native';
 import { useAuth } from '../context/AuthContext';
 import { openWhatsApp } from '../utils/whatsapp';
+import { useChurch } from '../context/ChurchContext';
 import Theme from '../theme/Theme';
 import FirestoreService, { DailyPromise, ScheduleEvent, AppMember, Sermon } from '../services/FirestoreService';
 import Svg, { Path, Circle, Rect, Polygon } from 'react-native-svg';
@@ -211,6 +212,7 @@ const EventMarquee = ({ events, onEventPress }: { events: any[], onEventPress: (
 export default function HomeScreen() {
   const navigation = useNavigation<any>();
   const { user, signOut } = useAuth();
+  const { activeChurch } = useChurch();
   const { mode, isDark, toggleTheme, colors } = useTheme();
   const [member, setMember] = useState<AppMember | null>(null);
   const [promise, setPromise] = useState<DailyPromise | null>(null);
@@ -315,10 +317,7 @@ export default function HomeScreen() {
       Alert.alert('Sign In Required', 'Please complete your profile configuration first.');
       return;
     }
-    if (!member.accountId) {
-      Alert.alert('No Household Linked', 'Your profile is not linked to any household. Please contact the administrator.');
-      return;
-    }
+    // Removed the !member.accountId check to allow members to add family members using their own ID
     navigation.navigate('Members');
   };
 
@@ -380,7 +379,7 @@ export default function HomeScreen() {
     return (
       <View style={[styles.loadingContainer, { backgroundColor: '#1a2d5a' }]}>
         <ActivityIndicator size="large" color="#FCD34D" />
-        <Text style={styles.screenLoadingText}>Church of GOD — A Gateway to Heaven</Text>
+        <Text style={styles.screenLoadingText}>{activeChurch?.name || 'Welcome'} — {activeChurch?.tagline || 'Connect & Grow'}</Text>
       </View>
     );
   }
@@ -394,14 +393,14 @@ export default function HomeScreen() {
           <View style={styles.headerLeft}>
             <View style={styles.logoCircle}>
               <Image 
-                source={require('../../assets/logo.png')} 
+                source={activeChurch?.theme?.logoUrl ? { uri: activeChurch.theme.logoUrl } : require('../../assets/logo.png')} 
                 style={styles.logoImg}
                 resizeMode="cover"
               />
             </View>
-            <View style={styles.titleCol}>
-              <Text style={styles.hdTitle}>Church of GOD</Text>
-              <Text style={styles.hdSub}>Kristhunandu Sahodarulu Sahavasamu</Text>
+            <View style={styles.hdTextGroup}>
+              <Text style={styles.hdTitle}>{activeChurch?.name || 'Welcome'}</Text>
+              <Text style={styles.hdSub}>{activeChurch?.tagline || 'kristhunandu sahodarulu sahavasmu'}</Text>
             </View>
           </View>
 
@@ -434,7 +433,7 @@ export default function HomeScreen() {
 
         <View style={styles.greetingSection}>
           <Text style={styles.greetingText}>
-            {getGreeting()}, <Text style={styles.userNameGold}>{member?.name || user?.displayName || 'Member'}</Text> 🙏
+            {getGreeting()}, <Text style={styles.userNameGold}>{(`${member?.firstName || ''} ${member?.lastName || ''}`.trim()) || member?.name || user?.displayName || 'Member'}</Text> 🙏
           </Text>
           <Text style={styles.dateText}>
             {new Date().toLocaleDateString('en-US', { weekday: 'long', day: 'numeric', month: 'long', year: 'numeric' })} · {getTeluguDay()}
@@ -467,7 +466,11 @@ export default function HomeScreen() {
               style={{ borderRadius: 20 }}
             >
               {/* Slide 1 — Promise Text */}
-              <View style={[styles.phSlide, styles.phInner]}>
+              <TouchableOpacity 
+                activeOpacity={0.8}
+                style={[styles.phSlide, styles.phInner]} 
+                onPress={() => navigation.navigate('PromiseArchive')}
+              >
                 <Text style={styles.phLabel}>TODAY'S PROMISE · ఈ రోజు వాగ్దానం</Text>
                 <Text style={styles.phEn}>{promise ? `"${stripHtml(promise.verse)}"` : ''}</Text>
                 <Text style={styles.phRefEn}>{promise ? `— ${promise.verseReferenceEn || promise.verseReference}` : ''}</Text>
@@ -481,17 +484,19 @@ export default function HomeScreen() {
                   </TouchableOpacity>
                   <TouchableOpacity 
                     style={styles.phWatchBtn} 
-                    onPress={() => navigation.navigate('DailyVideo', { 
-                      youtubeId: promise?.youtubeId,
-                      videoTitle: promise?.videoTitle,
-                      pastor: promise?.pastor
-                    })}
+                    onPress={() => {
+                      navigation.navigate('DailyVideo', { 
+                        youtubeId: promise?.youtubeId,
+                        videoTitle: promise?.videoTitle,
+                        pastor: promise?.pastor
+                      });
+                    }}
                   >
                     <Play size={18} color="#fff" fill="#fff" />
                     <Text style={styles.phBtnTxt}>Watch video</Text>
                   </TouchableOpacity>
                 </View>
-              </View>
+              </TouchableOpacity>
 
               {/* Slide 2 — Thumbnail (only if image exists) */}
               {promiseThumbnail && (
@@ -530,7 +535,17 @@ export default function HomeScreen() {
             <GridItem icon={<Award size={26} color="#fff" />} label="Bible Plans" color="#374151" onPress={() => navigation.navigate('BiblePlans')} />
 
             <GridItem icon={<Bell size={26} color="#fff" />} label="Updates" color="#0284c7" onPress={() => navigation.navigate('Updates')} />
-            <GridItem icon={<YoutubeIcon size={26} color="#fff" />} label="YouTube Live" color="#ef4444" onPress={() => Linking.openURL('https://www.youtube.com/@Brothersinchristfellowship/live')} />
+            <GridItem 
+              icon={<YoutubeIcon size={26} color="#fff" />} 
+              label="YouTube Live" 
+              color="#ef4444" 
+              onPress={() => {
+                let yUrl = activeChurch?.socialLinks?.youtube || 'https://www.youtube.com/@Brothersinchristfellowship/live';
+                // If it's a channel link and user didn't put /live, we can just open it. 
+                // But let's assume the admin provided the exact link they want people to go to.
+                Linking.openURL(yUrl);
+              }} 
+            />
             <GridItem icon={<Users size={26} color="#fff" />} label="Members" color="#db2777" onPress={handleOpenMembers} />
             <GridItem icon={<Sun size={26} color="#fff" />} label="Devotion" color="#b45309" onPress={() => Alert.alert('Daily Devotion', 'Devotion feeds coming soon!')} />
             <GridItem icon={<Info size={26} color="#fff" />} label="About Us" color="#1a2d5a" onPress={() => navigation.navigate('AboutUs')} />
@@ -560,7 +575,7 @@ export default function HomeScreen() {
                     >
                       <View style={styles.ebThumbnailContainer}>
                         <Image 
-                          source={{ uri: item.image || 'https://images.unsplash.com/photo-1438232992991-995b7058bbb3?q=80&w=400' }}
+                          source={{ uri: item.image || item.bannerUrl || 'https://images.unsplash.com/photo-1438232992991-995b7058bbb3?q=80&w=400' }}
                           style={styles.ebThumbnail}
                           resizeMode="cover"
                         />

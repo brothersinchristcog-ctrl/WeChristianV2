@@ -52,7 +52,7 @@ export default function GivingScreen({ navigation }: any) {
   const giving = activeChurch?.givingDetails;
   const upiId = giving?.upiId || '8000504070@ybl';
   const phonepeNum = giving?.phonepeNumber || '8000504070';
-  const payeeName = activeChurch?.name || 'Church of God';
+  const payeeName = activeChurch?.name || 'Your Church';
 
   useEffect(() => {
     const fetchMember = async () => {
@@ -83,6 +83,7 @@ export default function GivingScreen({ navigation }: any) {
         phone: user?.phoneNumber || '',
         churchId: activeChurch?.id || ''
       });
+      
       // Try PhonePe gateway first, fall back to UPI deep link if not available
       const paymentResult = await PhonePeService.startPaymentFlow(
         numAmt, 
@@ -92,12 +93,22 @@ export default function GivingScreen({ navigation }: any) {
 
       if (!paymentResult.success) {
         // Fallback to direct UPI deep link (works immediately without backend)
-        const upiUrl = `upi://pay?pa=${upiId}&pn=${encodeURIComponent(payeeName)}&am=${numAmt}&cu=INR`;
-        const canOpen = await Linking.canOpenURL(upiUrl);
-        if (canOpen) {
-          await Linking.openURL(upiUrl);
-        } else {
-          Alert.alert('No UPI App', 'Please install PhonePe or Google Pay to continue.');
+        const formattedAmt = numAmt.toFixed(2);
+        const safePayeeName = payeeName.replace(/[^a-zA-Z0-9 ]/g, "").trim();
+        
+        const upiUrl = `upi://pay?pa=${upiId}&pn=${encodeURIComponent(safePayeeName)}&tn=${encodeURIComponent(activeCat)}&am=${formattedAmt}&cu=INR`;
+        const phonepeUrl = `phonepe://pay?pa=${upiId}&pn=${encodeURIComponent(safePayeeName)}&tn=${encodeURIComponent(activeCat)}&am=${formattedAmt}&cu=INR`;
+
+        try {
+          // Try direct PhonePe intent first
+          await Linking.openURL(phonepeUrl);
+        } catch (phonePeError) {
+          try {
+            // Fallback to generic UPI chooser
+            await Linking.openURL(upiUrl);
+          } catch (upiError) {
+            Alert.alert('Payment Failed', 'No UPI app found on your device. Please install PhonePe, GPay, or Paytm to continue.');
+          }
         }
       }
 
@@ -207,36 +218,93 @@ export default function GivingScreen({ navigation }: any) {
           <View style={[styles.upiInfoCard, { backgroundColor: isDark ? '#1e293b' : '#f8fafc', borderColor: isDark ? '#334155' : '#e2e8f0' }]}>
             <Text style={[styles.upiSectionTitle, { color: isDark ? '#fcd34d' : '#1a2d5a' }]}>Direct Transfer / PhonePe Details</Text>
             
-            <View style={styles.upiDetailRow}>
-              <View>
-                <Text style={styles.upiLabel}>PHONEPE NUMBER</Text>
-                <Text style={[styles.upiValue, { color: isDark ? '#fff' : '#1e293b' }]}>{phonepeNum}</Text>
-              </View>
-              <TouchableOpacity 
-                style={[styles.copyBtn, { backgroundColor: isDark ? '#334155' : '#eff6ff' }]} 
-                onPress={() => handleCopy(phonepeNum, 'PhonePe Number')}
-              >
-                <Share2 size={14} color={isDark ? '#fcd34d' : '#1a2d5a'} />
-                <Text style={[styles.copyBtnTxt, { color: isDark ? '#fcd34d' : '#1a2d5a' }]}>Copy/Share</Text>
-              </TouchableOpacity>
-            </View>
+            {phonepeNum && (
+              <>
+                <View style={styles.upiDetailRow}>
+                  <View>
+                    <Text style={styles.upiLabel}>PHONEPE NUMBER</Text>
+                    <Text style={[styles.upiValue, { color: isDark ? '#fff' : '#1e293b' }]}>{phonepeNum}</Text>
+                  </View>
+                  <TouchableOpacity 
+                    style={[styles.copyBtn, { backgroundColor: isDark ? '#334155' : '#eff6ff' }]} 
+                    onPress={() => handleCopy(phonepeNum, 'PhonePe Number')}
+                  >
+                    <Share2 size={14} color={isDark ? '#fcd34d' : '#1a2d5a'} />
+                    <Text style={[styles.copyBtnTxt, { color: isDark ? '#fcd34d' : '#1a2d5a' }]}>Copy</Text>
+                  </TouchableOpacity>
+                </View>
+                <View style={[styles.upiDivider, { backgroundColor: isDark ? '#334155' : '#e2e8f0' }]} />
+              </>
+            )}
 
-            <View style={[styles.upiDivider, { backgroundColor: isDark ? '#334155' : '#e2e8f0' }]} />
-
-            <View style={styles.upiDetailRow}>
-              <View>
-                <Text style={styles.upiLabel}>UPI ID</Text>
-                <Text style={[styles.upiValue, { color: isDark ? '#fff' : '#1e293b' }]}>{upiId}</Text>
+            {upiId && (
+              <View style={styles.upiDetailRow}>
+                <View>
+                  <Text style={styles.upiLabel}>UPI ID</Text>
+                  <Text style={[styles.upiValue, { color: isDark ? '#fff' : '#1e293b' }]}>{upiId}</Text>
+                </View>
+                <TouchableOpacity 
+                  style={[styles.copyBtn, { backgroundColor: isDark ? '#334155' : '#eff6ff' }]} 
+                  onPress={() => handleCopy(upiId, 'UPI ID')}
+                >
+                  <Share2 size={14} color={isDark ? '#fcd34d' : '#1a2d5a'} />
+                  <Text style={[styles.copyBtnTxt, { color: isDark ? '#fcd34d' : '#1a2d5a' }]}>Copy</Text>
+                </TouchableOpacity>
               </View>
-              <TouchableOpacity 
-                style={[styles.copyBtn, { backgroundColor: isDark ? '#334155' : '#eff6ff' }]} 
-                onPress={() => handleCopy(upiId, 'UPI ID')}
-              >
-                <Share2 size={14} color={isDark ? '#fcd34d' : '#1a2d5a'} />
-                <Text style={[styles.copyBtnTxt, { color: isDark ? '#fcd34d' : '#1a2d5a' }]}>Copy/Share</Text>
-              </TouchableOpacity>
-            </View>
+            )}
+
+            {/* Additional UPIs */}
+            {giving?.upis?.map(upi => (
+              <React.Fragment key={upi.id}>
+                <View style={[styles.upiDivider, { backgroundColor: isDark ? '#334155' : '#e2e8f0' }]} />
+                <View style={styles.upiDetailRow}>
+                  <View>
+                    <Text style={styles.upiLabel}>UPI: {upi.name || 'Additional'}</Text>
+                    <Text style={[styles.upiValue, { color: isDark ? '#fff' : '#1e293b' }]}>{upi.upiId}</Text>
+                    {upi.phonepeNumber ? <Text style={[styles.upiValue, { color: isDark ? '#cbd5e1' : '#475569', fontSize: 12, marginTop: 2 }]}>PhonePe: {upi.phonepeNumber}</Text> : null}
+                  </View>
+                  <TouchableOpacity 
+                    style={[styles.copyBtn, { backgroundColor: isDark ? '#334155' : '#eff6ff' }]} 
+                    onPress={() => handleCopy(upi.upiId, 'UPI ID')}
+                  >
+                    <Share2 size={14} color={isDark ? '#fcd34d' : '#1a2d5a'} />
+                    <Text style={[styles.copyBtnTxt, { color: isDark ? '#fcd34d' : '#1a2d5a' }]}>Copy</Text>
+                  </TouchableOpacity>
+                </View>
+              </React.Fragment>
+            ))}
           </View>
+
+          {/* Bank Transfer Box */}
+          {(giving?.accountNumber || giving?.banks?.length) ? (
+            <View style={[styles.upiInfoCard, { backgroundColor: isDark ? '#1e293b' : '#f8fafc', borderColor: isDark ? '#334155' : '#e2e8f0' }]}>
+              <Text style={[styles.upiSectionTitle, { color: isDark ? '#fcd34d' : '#1a2d5a' }]}>Bank Transfer Details</Text>
+              
+              {giving?.accountNumber && (
+                <View style={styles.bankSection}>
+                  <Text style={styles.upiLabel}>PRIMARY BANK</Text>
+                  <Text style={[styles.upiValue, { color: isDark ? '#fff' : '#1e293b' }]}>{giving.bankName || 'Bank Name Not Set'}</Text>
+                  <Text style={[styles.upiValue, { color: isDark ? '#cbd5e1' : '#475569', fontSize: 13, marginTop: 2 }]}>{giving.accountName || 'Account Name Not Set'}</Text>
+                  <Text style={[styles.upiValue, { color: isDark ? '#cbd5e1' : '#475569', fontSize: 13, marginTop: 2 }]}>A/c: {giving.accountNumber}</Text>
+                  <Text style={[styles.upiValue, { color: isDark ? '#cbd5e1' : '#475569', fontSize: 13, marginTop: 2 }]}>IFSC: {giving.ifscCode}</Text>
+                </View>
+              )}
+
+              {/* Additional Banks */}
+              {giving?.banks?.map(bank => (
+                <React.Fragment key={bank.id}>
+                  {(giving?.accountNumber || bank.id !== giving?.banks?.[0]?.id) && <View style={[styles.upiDivider, { backgroundColor: isDark ? '#334155' : '#e2e8f0', marginVertical: 16 }]} />}
+                  <View style={styles.bankSection}>
+                    <Text style={styles.upiLabel}>{bank.name?.toUpperCase() || 'ADDITIONAL BANK'}</Text>
+                    <Text style={[styles.upiValue, { color: isDark ? '#fff' : '#1e293b' }]}>{bank.bankName}</Text>
+                    <Text style={[styles.upiValue, { color: isDark ? '#cbd5e1' : '#475569', fontSize: 13, marginTop: 2 }]}>{bank.accountName}</Text>
+                    <Text style={[styles.upiValue, { color: isDark ? '#cbd5e1' : '#475569', fontSize: 13, marginTop: 2 }]}>A/c: {bank.accountNumber}</Text>
+                    <Text style={[styles.upiValue, { color: isDark ? '#cbd5e1' : '#475569', fontSize: 13, marginTop: 2 }]}>IFSC: {bank.ifscCode}</Text>
+                  </View>
+                </React.Fragment>
+              ))}
+            </View>
+          ) : null}
 
           <View style={styles.securityFooter}>
              <Lock size={12} color="#94a3b8" />
@@ -376,4 +444,7 @@ const styles = StyleSheet.create({
     height: 1,
     marginVertical: 12,
   },
+  bankSection: {
+    marginTop: 4,
+  }
 });

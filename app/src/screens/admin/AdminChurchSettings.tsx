@@ -1,0 +1,463 @@
+import React, { useState, useEffect } from 'react';
+import {
+  View,
+  Text,
+  TextInput,
+  TouchableOpacity,
+  StyleSheet,
+  ActivityIndicator,
+  Alert,
+  ScrollView,
+  StatusBar,
+  Image,
+} from 'react-native';
+import { SafeAreaView } from 'react-native-safe-area-context';
+import { ChevronLeft, Save, Palette, Image as ImageIcon, Link, DollarSign, Building2, Plus, Trash2 } from 'lucide-react-native';
+import * as ImagePicker from 'expo-image-picker';
+import ChurchService, { ChurchDetails } from '../../services/ChurchService';
+import { useChurch } from '../../context/ChurchContext';
+import { AdminTabContext } from '../../context/AdminTabContext';
+import storage from '@react-native-firebase/storage';
+
+const PRESET_COLORS = [
+  '#1a2d5a', '#c0392b', '#16a34a', '#7c3aed',
+  '#b45309', '#0891b2', '#be185d', '#334155',
+];
+
+export default function AdminChurchSettings({ navigation }: any) {
+  const { churchId, setActiveChurch } = useChurch();
+  const { goBack } = React.useContext(AdminTabContext);
+  const [loading, setLoading] = useState(true);
+  const [saving, setSaving] = useState(false);
+  const [uploadingImage, setUploadingImage] = useState<'logo' | 'banner' | null>(null);
+
+  const [form, setForm] = useState<Partial<ChurchDetails>>({});
+  const [activeTab, setActiveTab] = useState<'info' | 'branding' | 'giving'>('info');
+  const [isEditing, setIsEditing] = useState(false);
+
+  useEffect(() => {
+    loadChurchData();
+  }, [churchId]);
+
+  const loadChurchData = async () => {
+    if (!churchId) return;
+    const data = await ChurchService.getChurchDetails(churchId);
+    if (data) {
+      setForm(data);
+    }
+    setLoading(false);
+  };
+
+  const updateField = (section: keyof ChurchDetails, field: string, value: any) => {
+    setForm(prev => {
+      const newForm = { ...prev };
+      if (section === 'name' || section === 'tagline' || section === 'contactEmail' || section === 'contactPhone' || section === 'address' || section === 'aboutUs') {
+        (newForm as any)[section] = value;
+      } else {
+        newForm[section] = { ...(newForm[section] || {}), [field]: value } as any;
+      }
+      return newForm;
+    });
+  };
+
+  const addUpi = () => {
+    const upis = form.givingDetails?.upis || [];
+    updateField('givingDetails', 'upis', [...upis, { id: Date.now().toString(), name: '', upiId: '', phonepeNumber: '' }]);
+  };
+
+  const updateUpi = (index: number, key: string, value: string) => {
+    const upis = [...(form.givingDetails?.upis || [])];
+    upis[index] = { ...upis[index], [key]: value };
+    updateField('givingDetails', 'upis', upis);
+  };
+
+  const removeUpi = (index: number) => {
+    const upis = [...(form.givingDetails?.upis || [])];
+    upis.splice(index, 1);
+    updateField('givingDetails', 'upis', upis);
+  };
+
+  const addBank = () => {
+    const banks = form.givingDetails?.banks || [];
+    updateField('givingDetails', 'banks', [...banks, { id: Date.now().toString(), name: '', accountName: '', bankName: '', accountNumber: '', ifscCode: '' }]);
+  };
+
+  const updateBank = (index: number, key: string, value: string) => {
+    const banks = [...(form.givingDetails?.banks || [])];
+    banks[index] = { ...banks[index], [key]: value };
+    updateField('givingDetails', 'banks', banks);
+  };
+
+  const removeBank = (index: number) => {
+    const banks = [...(form.givingDetails?.banks || [])];
+    banks.splice(index, 1);
+    updateField('givingDetails', 'banks', banks);
+  };
+
+  const pickImage = async (type: 'logo' | 'banner') => {
+    let result = await ImagePicker.launchImageLibraryAsync({
+      mediaTypes: ImagePicker.MediaTypeOptions.Images,
+      allowsEditing: true,
+      aspect: type === 'logo' ? [1, 1] : [16, 9],
+      quality: 0.8,
+    });
+
+    if (!result.canceled && result.assets && result.assets.length > 0) {
+      uploadImage(result.assets[0].uri, type);
+    }
+  };
+
+  const uploadImage = async (uri: string, type: 'logo' | 'banner') => {
+    if (!churchId) return;
+    setUploadingImage(type);
+    try {
+      const ext = uri.substring(uri.lastIndexOf('.') + 1) || 'jpg';
+      const storagePath = `churches/${churchId}/brand/${type}_${Date.now()}.${ext}`;
+      
+      const reference = storage().ref(storagePath);
+      await reference.putFile(uri);
+      const downloadURL = await reference.getDownloadURL();
+      
+      updateField('theme', type === 'logo' ? 'logoUrl' : 'bannerUrl', downloadURL);
+      setUploadingImage(null);
+    } catch (e: any) {
+      console.error(e);
+      Alert.alert('Error', 'Failed to prepare image for upload');
+      setUploadingImage(null);
+    }
+  };
+
+  const handleSave = async () => {
+    if (!churchId) return;
+    setSaving(true);
+    try {
+      await ChurchService.updateChurch(churchId, form);
+      // Refresh the context so the app updates immediately
+      const updated = await ChurchService.getChurchDetails(churchId);
+      if (updated) setActiveChurch(updated);
+      Alert.alert('Success', 'Church settings updated successfully!');
+    } catch (e) {
+      console.error(e);
+      Alert.alert('Error', 'Failed to save settings.');
+    } finally {
+      setSaving(false);
+      setIsEditing(false);
+    }
+  };
+
+  if (loading) {
+    return (
+      <View style={[styles.container, { justifyContent: 'center', alignItems: 'center' }]}>
+        <ActivityIndicator size="large" color="#fbbf24" />
+      </View>
+    );
+  }
+
+  const primaryColor = form.theme?.primaryColor || '#1a2d5a';
+
+  return (
+    <View style={styles.container}>
+      <StatusBar barStyle="light-content" />
+      <SafeAreaView style={{ flex: 1 }} edges={['top', 'bottom']}>
+        {/* Header */}
+        <View style={[styles.header, { backgroundColor: primaryColor }]}>
+          <TouchableOpacity onPress={goBack} style={styles.headerBtn}>
+            <ChevronLeft size={24} color="#fff" />
+          </TouchableOpacity>
+          <Text style={styles.headerTitle}>Church Settings</Text>
+          {isEditing ? (
+            <TouchableOpacity onPress={handleSave} disabled={saving} style={styles.saveBtn}>
+              {saving ? <ActivityIndicator color={primaryColor} size="small" /> : <Text style={[styles.saveBtnTxt, { color: primaryColor }]}>Save</Text>}
+            </TouchableOpacity>
+          ) : (
+            <TouchableOpacity onPress={() => setIsEditing(true)} style={styles.editBtn}>
+              <Text style={styles.editBtnTxt}>Edit</Text>
+            </TouchableOpacity>
+          )}
+        </View>
+
+        {/* Tabs */}
+        <View style={styles.tabs}>
+          <TouchableOpacity 
+            style={[styles.tab, activeTab === 'info' && { borderBottomColor: primaryColor }]} 
+            onPress={() => setActiveTab('info')}
+          >
+            <Building2 size={18} color={activeTab === 'info' ? primaryColor : '#64748b'} />
+            <Text style={[styles.tabTxt, activeTab === 'info' && { color: primaryColor, fontWeight: '700' }]}>Info</Text>
+          </TouchableOpacity>
+          <TouchableOpacity 
+            style={[styles.tab, activeTab === 'branding' && { borderBottomColor: primaryColor }]} 
+            onPress={() => setActiveTab('branding')}
+          >
+            <Palette size={18} color={activeTab === 'branding' ? primaryColor : '#64748b'} />
+            <Text style={[styles.tabTxt, activeTab === 'branding' && { color: primaryColor, fontWeight: '700' }]}>Brand</Text>
+          </TouchableOpacity>
+          <TouchableOpacity 
+            style={[styles.tab, activeTab === 'giving' && { borderBottomColor: primaryColor }]} 
+            onPress={() => setActiveTab('giving')}
+          >
+            <DollarSign size={18} color={activeTab === 'giving' ? primaryColor : '#64748b'} />
+            <Text style={[styles.tabTxt, activeTab === 'giving' && { color: primaryColor, fontWeight: '700' }]}>Giving</Text>
+          </TouchableOpacity>
+        </View>
+
+        <ScrollView contentContainerStyle={styles.content} keyboardShouldPersistTaps="handled">
+          
+          {/* INFO TAB */}
+          {activeTab === 'info' && (
+            <View>
+              {!isEditing && <Text style={styles.viewModeHint}>Tap 'Edit' in the top right to make changes.</Text>}
+              <Text style={styles.sectionLabel}>Basic Information</Text>
+              
+              <Text style={styles.label}>Church Name</Text>
+              <TextInput style={[styles.input, !isEditing && styles.inputDisabled]} value={form.name} onChangeText={v => updateField('name' as any, '', v)} editable={isEditing} />
+
+              <Text style={styles.label}>Tagline / Motto</Text>
+              <TextInput style={[styles.input, !isEditing && styles.inputDisabled]} value={form.tagline} onChangeText={v => updateField('tagline' as any, '', v)} placeholder="e.g. A Gateway to Heaven" placeholderTextColor="#64748b" editable={isEditing} />
+
+              <Text style={styles.label}>About Us</Text>
+              <TextInput style={[styles.input, styles.textArea, !isEditing && styles.inputDisabled]} multiline numberOfLines={4} value={form.aboutUs} onChangeText={v => updateField('aboutUs' as any, '', v)} placeholder="Describe your church..." placeholderTextColor="#64748b" editable={isEditing} />
+
+              <Text style={styles.label}>Address</Text>
+              <TextInput style={[styles.input, styles.textArea, !isEditing && styles.inputDisabled]} multiline numberOfLines={2} value={form.address} onChangeText={v => updateField('address' as any, '', v)} editable={isEditing} />
+
+              <Text style={styles.label}>Contact Phone</Text>
+              <TextInput style={[styles.input, !isEditing && styles.inputDisabled]} value={form.contactPhone} onChangeText={v => updateField('contactPhone' as any, '', v)} keyboardType="phone-pad" editable={isEditing} />
+
+              <Text style={styles.label}>Contact Email</Text>
+              <TextInput style={[styles.input, !isEditing && styles.inputDisabled]} value={form.contactEmail} onChangeText={v => updateField('contactEmail' as any, '', v)} keyboardType="email-address" autoCapitalize="none" editable={isEditing} />
+
+              <Text style={[styles.sectionLabel, { marginTop: 24 }]}>Social Links</Text>
+              
+              <View style={[styles.inputRow, !isEditing && styles.inputDisabled]}>
+                <Link size={16} color="#64748b" />
+                <TextInput style={styles.inputFlex} placeholder="Website URL" value={form.socialLinks?.website} onChangeText={v => updateField('socialLinks', 'website', v)} editable={isEditing} />
+              </View>
+              <View style={[styles.inputRow, !isEditing && styles.inputDisabled]}>
+                <Text style={styles.socialPrefix}>YouTube</Text>
+                <TextInput style={styles.inputFlex} placeholder="Channel or Live URL" value={form.socialLinks?.youtube} onChangeText={v => updateField('socialLinks', 'youtube', v)} editable={isEditing} />
+              </View>
+              <View style={[styles.inputRow, !isEditing && styles.inputDisabled]}>
+                <Text style={styles.socialPrefix}>Facebook</Text>
+                <TextInput style={styles.inputFlex} placeholder="Page URL" value={form.socialLinks?.facebook} onChangeText={v => updateField('socialLinks', 'facebook', v)} editable={isEditing} />
+              </View>
+              <View style={[styles.inputRow, !isEditing && styles.inputDisabled]}>
+                <Text style={styles.socialPrefix}>Instagram</Text>
+                <TextInput style={styles.inputFlex} placeholder="Profile URL" value={form.socialLinks?.instagram} onChangeText={v => updateField('socialLinks', 'instagram', v)} editable={isEditing} />
+              </View>
+            </View>
+          )}
+
+          {/* BRANDING TAB */}
+          {activeTab === 'branding' && (
+            <View>
+              {!isEditing && <Text style={styles.viewModeHint}>Tap 'Edit' in the top right to make changes.</Text>}
+              <Text style={styles.sectionLabel}>Church Logo</Text>
+              <TouchableOpacity style={[styles.imageUpload, !isEditing && styles.inputDisabled]} onPress={() => isEditing && pickImage('logo')} disabled={!isEditing}>
+                {uploadingImage === 'logo' ? (
+                  <ActivityIndicator color={primaryColor} />
+                ) : form.theme?.logoUrl ? (
+                  <Image source={{ uri: form.theme.logoUrl }} style={styles.logoPreview} />
+                ) : (
+                  <>
+                    <ImageIcon size={32} color="#64748b" />
+                    <Text style={styles.uploadTxt}>Tap to upload logo</Text>
+                  </>
+                )}
+              </TouchableOpacity>
+
+              <Text style={styles.sectionLabel}>Church Banner</Text>
+              <TouchableOpacity style={[styles.imageUpload, styles.bannerUpload, !isEditing && styles.inputDisabled]} onPress={() => isEditing && pickImage('banner')} disabled={!isEditing}>
+                {uploadingImage === 'banner' ? (
+                  <ActivityIndicator color={primaryColor} />
+                ) : form.theme?.bannerUrl ? (
+                  <Image source={{ uri: form.theme.bannerUrl }} style={styles.bannerPreview} />
+                ) : (
+                  <>
+                    <ImageIcon size={32} color="#64748b" />
+                    <Text style={styles.uploadTxt}>Tap to upload banner (16:9)</Text>
+                  </>
+                )}
+              </TouchableOpacity>
+
+              <Text style={styles.sectionLabel}>Primary Color</Text>
+              <View style={styles.colorGrid}>
+                {PRESET_COLORS.map(c => (
+                  <TouchableOpacity key={c} style={[styles.colorSwatch, { backgroundColor: c }, form.theme?.primaryColor === c && styles.colorSwatchSelected, !isEditing && styles.colorSwatchDisabled]} onPress={() => isEditing && updateField('theme', 'primaryColor', c)} disabled={!isEditing} />
+                ))}
+              </View>
+
+              <Text style={styles.sectionLabel}>Accent Color</Text>
+              <View style={styles.colorGrid}>
+                {PRESET_COLORS.map(c => (
+                  <TouchableOpacity key={c} style={[styles.colorSwatch, { backgroundColor: c }, form.theme?.secondaryColor === c && styles.colorSwatchSelected, !isEditing && styles.colorSwatchDisabled]} onPress={() => isEditing && updateField('theme', 'secondaryColor', c)} disabled={!isEditing} />
+                ))}
+              </View>
+            </View>
+          )}
+
+          {/* GIVING TAB */}
+          {activeTab === 'giving' && (
+            <View>
+              {!isEditing && <Text style={styles.viewModeHint}>Tap 'Edit' in the top right to make changes.</Text>}
+              <Text style={styles.sectionLabel}>Primary UPI & Mobile Payments</Text>
+              
+              <Text style={styles.label}>UPI ID</Text>
+              <TextInput style={[styles.input, !isEditing && styles.inputDisabled]} value={form.givingDetails?.upiId} onChangeText={v => updateField('givingDetails', 'upiId', v)} placeholder="e.g. church@okicici" placeholderTextColor="#64748b" editable={isEditing} />
+
+              <Text style={styles.label}>PhonePe Number</Text>
+              <TextInput style={[styles.input, !isEditing && styles.inputDisabled]} value={form.givingDetails?.phonepeNumber} onChangeText={v => updateField('givingDetails', 'phonepeNumber', v)} placeholder="e.g. 9876543210" placeholderTextColor="#64748b" keyboardType="phone-pad" editable={isEditing} />
+
+              <View style={styles.sectionHeaderRow}>
+                <Text style={[styles.sectionLabel, { marginBottom: 0 }]}>Additional UPI Accounts</Text>
+                {isEditing && (
+                  <TouchableOpacity onPress={addUpi} style={styles.addBtn}>
+                    <Plus size={16} color="#1a2d5a"/>
+                    <Text style={styles.addBtnTxt}>Add</Text>
+                  </TouchableOpacity>
+                )}
+              </View>
+
+              {form.givingDetails?.upis?.map((upi, i) => (
+                <View key={upi.id} style={[styles.cardItem, !isEditing && styles.inputDisabled]}>
+                  <View style={styles.cardHeader}>
+                    <Text style={styles.cardTitle}>UPI Account #{i + 1}</Text>
+                    {isEditing && (
+                      <TouchableOpacity onPress={() => removeUpi(i)}>
+                        <Trash2 size={16} color="#ef4444" />
+                      </TouchableOpacity>
+                    )}
+                  </View>
+                  <Text style={styles.label}>Label (e.g. Building Fund)</Text>
+                  <TextInput style={[styles.input, !isEditing && {backgroundColor:'transparent', borderColor:'transparent', paddingHorizontal:0, height:30}]} value={upi.name} onChangeText={v => updateUpi(i, 'name', v)} placeholder="Fund Name" placeholderTextColor="#64748b" editable={isEditing} />
+                  <Text style={styles.label}>UPI ID</Text>
+                  <TextInput style={[styles.input, !isEditing && {backgroundColor:'transparent', borderColor:'transparent', paddingHorizontal:0, height:30}]} value={upi.upiId} onChangeText={v => updateUpi(i, 'upiId', v)} placeholder="church@okicici" placeholderTextColor="#64748b" editable={isEditing} />
+                  <Text style={styles.label}>PhonePe Number</Text>
+                  <TextInput style={[styles.input, !isEditing && {backgroundColor:'transparent', borderColor:'transparent', paddingHorizontal:0, height:30}]} value={upi.phonepeNumber} onChangeText={v => updateUpi(i, 'phonepeNumber', v)} placeholder="Optional" placeholderTextColor="#64748b" keyboardType="phone-pad" editable={isEditing} />
+                </View>
+              ))}
+
+              <Text style={[styles.sectionLabel, { marginTop: 24 }]}>Primary Bank Transfer Details</Text>
+              
+              <Text style={styles.label}>Account Name</Text>
+              <TextInput style={[styles.input, !isEditing && styles.inputDisabled]} value={form.givingDetails?.accountName} onChangeText={v => updateField('givingDetails', 'accountName', v)} placeholder="Brothers in Christ" placeholderTextColor="#64748b" editable={isEditing} />
+
+              <Text style={styles.label}>Bank Name</Text>
+              <TextInput style={[styles.input, !isEditing && styles.inputDisabled]} value={form.givingDetails?.bankName} onChangeText={v => updateField('givingDetails', 'bankName', v)} placeholder="HDFC Bank" placeholderTextColor="#64748b" editable={isEditing} />
+
+              <Text style={styles.label}>Account Number</Text>
+              <TextInput style={[styles.input, !isEditing && styles.inputDisabled]} value={form.givingDetails?.accountNumber} onChangeText={v => updateField('givingDetails', 'accountNumber', v)} placeholder="50100XXXXXXX" placeholderTextColor="#64748b" keyboardType="numeric" editable={isEditing} />
+
+              <Text style={styles.label}>IFSC Code</Text>
+              <TextInput style={[styles.input, !isEditing && styles.inputDisabled]} value={form.givingDetails?.ifscCode} onChangeText={v => updateField('givingDetails', 'ifscCode', v)} placeholder="HDFC0001234" placeholderTextColor="#64748b" autoCapitalize="characters" editable={isEditing} />
+
+              <View style={[styles.sectionHeaderRow, { marginTop: 24 }]}>
+                <Text style={[styles.sectionLabel, { marginBottom: 0 }]}>Additional Bank Accounts</Text>
+                {isEditing && (
+                  <TouchableOpacity onPress={addBank} style={styles.addBtn}>
+                    <Plus size={16} color="#1a2d5a"/>
+                    <Text style={styles.addBtnTxt}>Add</Text>
+                  </TouchableOpacity>
+                )}
+              </View>
+
+              {form.givingDetails?.banks?.map((bank, i) => (
+                <View key={bank.id} style={[styles.cardItem, !isEditing && styles.inputDisabled]}>
+                  <View style={styles.cardHeader}>
+                    <Text style={styles.cardTitle}>Bank Account #{i + 1}</Text>
+                    {isEditing && (
+                      <TouchableOpacity onPress={() => removeBank(i)}>
+                        <Trash2 size={16} color="#ef4444" />
+                      </TouchableOpacity>
+                    )}
+                  </View>
+                  <Text style={styles.label}>Label (e.g. Charity Fund)</Text>
+                  <TextInput style={[styles.input, !isEditing && {backgroundColor:'transparent', borderColor:'transparent', paddingHorizontal:0, height:30}]} value={bank.name} onChangeText={v => updateBank(i, 'name', v)} placeholder="Fund Name" placeholderTextColor="#64748b" editable={isEditing} />
+                  <Text style={styles.label}>Account Name</Text>
+                  <TextInput style={[styles.input, !isEditing && {backgroundColor:'transparent', borderColor:'transparent', paddingHorizontal:0, height:30}]} value={bank.accountName} onChangeText={v => updateBank(i, 'accountName', v)} placeholder="Brothers in Christ" placeholderTextColor="#64748b" editable={isEditing} />
+                  <Text style={styles.label}>Bank Name</Text>
+                  <TextInput style={[styles.input, !isEditing && {backgroundColor:'transparent', borderColor:'transparent', paddingHorizontal:0, height:30}]} value={bank.bankName} onChangeText={v => updateBank(i, 'bankName', v)} placeholder="HDFC Bank" placeholderTextColor="#64748b" editable={isEditing} />
+                  <Text style={styles.label}>Account Number</Text>
+                  <TextInput style={[styles.input, !isEditing && {backgroundColor:'transparent', borderColor:'transparent', paddingHorizontal:0, height:30}]} value={bank.accountNumber} onChangeText={v => updateBank(i, 'accountNumber', v)} placeholder="50100XXXXXXX" placeholderTextColor="#64748b" keyboardType="numeric" editable={isEditing} />
+                  <Text style={styles.label}>IFSC Code</Text>
+                  <TextInput style={[styles.input, !isEditing && {backgroundColor:'transparent', borderColor:'transparent', paddingHorizontal:0, height:30}]} value={bank.ifscCode} onChangeText={v => updateBank(i, 'ifscCode', v)} placeholder="HDFC0001234" placeholderTextColor="#64748b" autoCapitalize="characters" editable={isEditing} />
+                </View>
+              ))}
+
+            </View>
+          )}
+
+          <View style={{ height: 160 }} />
+        </ScrollView>
+      </SafeAreaView>
+    </View>
+  );
+}
+
+const styles = StyleSheet.create({
+  container: { flex: 1, backgroundColor: '#f1f5f9' },
+  header: {
+    flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between',
+    paddingHorizontal: 16, paddingVertical: 12,
+  },
+  headerBtn: { padding: 8 },
+  headerTitle: { color: '#fff', fontSize: 18, fontWeight: '700' },
+  
+  saveBtn: { backgroundColor: '#fff', paddingHorizontal: 16, paddingVertical: 6, borderRadius: 20 },
+  saveBtnTxt: { fontSize: 13, fontWeight: '700' },
+  editBtn: { backgroundColor: 'rgba(255,255,255,0.2)', paddingHorizontal: 16, paddingVertical: 6, borderRadius: 20 },
+  editBtnTxt: { fontSize: 13, fontWeight: '700', color: '#fff' },
+
+  viewModeHint: { backgroundColor: '#e0f2fe', color: '#0284c7', padding: 12, borderRadius: 8, marginBottom: 16, fontSize: 13, fontWeight: '600', textAlign: 'center' },
+  
+  tabs: {
+    flexDirection: 'row', backgroundColor: '#fff', borderBottomWidth: 1, borderBottomColor: '#e2e8f0',
+  },
+  tab: {
+    flex: 1, flexDirection: 'row', alignItems: 'center', justifyContent: 'center', gap: 8,
+    paddingVertical: 14, borderBottomWidth: 2, borderBottomColor: 'transparent',
+  },
+  tabTxt: { fontSize: 13, color: '#64748b', fontWeight: '600' },
+
+  content: { padding: 20 },
+  sectionLabel: { fontSize: 16, fontWeight: '700', color: '#0f172a', marginBottom: 16 },
+  
+  label: { fontSize: 12, fontWeight: '600', color: '#475569', marginBottom: 6 },
+  input: {
+    backgroundColor: '#fff', borderRadius: 8, paddingHorizontal: 14, paddingVertical: 12,
+    fontSize: 15, color: '#0f172a', borderWidth: 1, borderColor: '#cbd5e1', marginBottom: 16,
+  },
+  textArea: { height: 80, textAlignVertical: 'top' },
+
+  inputRow: {
+    flexDirection: 'row', alignItems: 'center', gap: 10,
+    backgroundColor: '#fff', borderRadius: 8, paddingHorizontal: 14, paddingVertical: 12,
+    borderWidth: 1, borderColor: '#cbd5e1', marginBottom: 12,
+  },
+  socialPrefix: { fontSize: 13, color: '#64748b', fontWeight: '600', width: 70 },
+  inputFlex: { flex: 1, fontSize: 15, color: '#0f172a' },
+  
+  inputDisabled: { backgroundColor: '#f8fafc', borderColor: '#e2e8f0', color: '#475569', opacity: 0.8 },
+
+  imageUpload: {
+    backgroundColor: '#fff', borderRadius: 12, borderWidth: 1, borderColor: '#cbd5e1', borderStyle: 'dashed',
+    height: 120, justifyContent: 'center', alignItems: 'center', marginBottom: 24, gap: 10,
+    overflow: 'hidden',
+  },
+  bannerUpload: { height: 160 },
+  logoPreview: { width: 100, height: 100, borderRadius: 50 },
+  bannerPreview: { width: '100%', height: '100%' },
+  uploadTxt: { color: '#64748b', fontSize: 13, fontWeight: '500' },
+
+  colorGrid: { flexDirection: 'row', flexWrap: 'wrap', gap: 12, marginBottom: 24 },
+  colorSwatch: { width: 44, height: 44, borderRadius: 22 },
+  colorSwatchSelected: { borderWidth: 3, borderColor: '#0f172a' },
+  colorSwatchDisabled: { opacity: 0.5 },
+  
+  sectionHeaderRow: { flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center', marginBottom: 16 },
+  addBtn: { flexDirection: 'row', alignItems: 'center', backgroundColor: '#e2e8f0', paddingHorizontal: 12, paddingVertical: 6, borderRadius: 20 },
+  addBtnTxt: { fontSize: 13, fontWeight: '700', color: '#1a2d5a', marginLeft: 4 },
+  cardItem: { backgroundColor: '#f8fafc', padding: 16, borderRadius: 12, borderWidth: 1, borderColor: '#e2e8f0', marginBottom: 16 },
+  cardHeader: { flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center', marginBottom: 12 },
+  cardTitle: { fontSize: 14, fontWeight: '700', color: '#0f172a' },
+});

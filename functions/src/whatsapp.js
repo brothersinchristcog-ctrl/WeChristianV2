@@ -10,6 +10,8 @@ export const onPersonalGreetingCreated = onDocumentCreated({
     if (!['personal_birthday', 'personal_anniversary'].includes(data.type)) {
         return;
     }
+    // AUTOMATED WHATSAPP DISABLED: Admin now sends custom text via manual WhatsApp deep-link.
+    return;
     if (!data.targetPhones || data.targetPhones.length === 0) {
         console.log('Skipping WhatsApp message: No target phones specified');
         return;
@@ -37,12 +39,13 @@ export const onPersonalGreetingCreated = onDocumentCreated({
                 },
                 body: JSON.stringify({
                     messaging_product: 'whatsapp',
-                    recipient_type: 'individual',
                     to: toPhone,
-                    type: 'text',
-                    text: {
-                        preview_url: false,
-                        body: data.body
+                    type: 'template',
+                    template: {
+                        name: 'hello_world',
+                        language: {
+                            code: 'en_US'
+                        }
                     }
                 })
             });
@@ -57,6 +60,49 @@ export const onPersonalGreetingCreated = onDocumentCreated({
         catch (error) {
             console.error(`Network Error sending WhatsApp to ${toPhone}:`, error);
         }
+    }
+});
+import { onRequest } from 'firebase-functions/v2/https';
+export const testWhatsApp = onRequest(async (req, res) => {
+    const token = process.env.WA_ACCESS_TOKEN;
+    const phoneId = process.env.WA_PHONE_ID;
+    if (!token || !phoneId) {
+        res.status(500).send('Missing WA_ACCESS_TOKEN or WA_PHONE_ID');
+        return;
+    }
+    const toPhone = req.query.phone;
+    if (!toPhone) {
+        res.status(400).send('Please provide a ?phone=YOUR_NUMBER parameter');
+        return;
+    }
+    try {
+        const response = await fetch(`https://graph.facebook.com/v17.0/${phoneId}/messages`, {
+            method: 'POST',
+            headers: {
+                'Authorization': `Bearer ${token}`,
+                'Content-Type': 'application/json',
+            },
+            body: JSON.stringify({
+                messaging_product: 'whatsapp',
+                recipient_type: 'individual',
+                to: toPhone,
+                type: 'text',
+                text: {
+                    preview_url: false,
+                    body: 'This is a test WhatsApp message from the WeChristian App Backend! 🎉'
+                }
+            })
+        });
+        const result = await response.json();
+        if (!response.ok) {
+            res.status(500).json({ error: 'Meta API Error', details: result });
+        }
+        else {
+            res.status(200).json({ success: true, details: result });
+        }
+    }
+    catch (error) {
+        res.status(500).json({ error: 'Network Error', details: String(error) });
     }
 });
 //# sourceMappingURL=whatsapp.js.map

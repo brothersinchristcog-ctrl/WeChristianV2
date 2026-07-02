@@ -21,6 +21,7 @@ const { width } = Dimensions.get('window');
 export default function AdminEventList() {
   const { setActiveTab, setEditingData } = useContext(AdminTabContext);
   const [events, setEvents] = useState<any[]>([]);
+  const [filterType, setFilterType] = useState<'Upcoming' | 'Past'>('Upcoming');
   const [loading, setLoading] = useState(true);
 
   useEffect(() => {
@@ -82,28 +83,42 @@ export default function AdminEventList() {
     setActiveTab(8); // Switch to Event Editor tab
   };
 
-  const handleDelete = (id: string, name: string) => {
-    Alert.alert(
-      'Delete Event',
-      `Are you sure you want to delete "${name}"?`,
-      [
-        { text: 'Cancel', style: 'cancel' },
-        { 
-          text: 'Delete', 
-          style: 'destructive',
-          onPress: async () => {
-            try {
-              setLoading(true);
-              await FirestoreService.deleteEvent(id);
-              await fetchEvents();
-            } catch (err) {
-              Alert.alert('Error', 'Failed to delete event');
-              setLoading(false);
-            }
+  const handleDelete = (event: any) => {
+    const executeDelete = async (deleteMode?: 'single' | 'future') => {
+      try {
+        setLoading(true);
+        await FirestoreService.deleteEvent(event.id, deleteMode);
+        await fetchEvents();
+      } catch (err) {
+        Alert.alert('Error', 'Failed to delete event');
+        setLoading(false);
+      }
+    };
+
+    if (event.recurringGroupId) {
+      Alert.alert(
+        'Delete Recurring Event',
+        `You are deleting a recurring event. Do you want to delete only this specific occurrence, or this and all future occurrences?`,
+        [
+          { text: 'Cancel', style: 'cancel' },
+          { text: 'Only this event', style: 'destructive', onPress: () => executeDelete('single') },
+          { text: 'This and future events', style: 'destructive', onPress: () => executeDelete('future') }
+        ]
+      );
+    } else {
+      Alert.alert(
+        'Delete Event',
+        `Are you sure you want to delete "${event.name || 'this event'}"?`,
+        [
+          { text: 'Cancel', style: 'cancel' },
+          { 
+            text: 'Delete', 
+            style: 'destructive',
+            onPress: () => executeDelete('single')
           }
-        }
-      ]
-    );
+        ]
+      );
+    }
   };
 
   if (loading && events.length === 0) {
@@ -142,20 +157,24 @@ export default function AdminEventList() {
             </Text>
             <Text style={styles.statLbl}>Published</Text>
           </View>
-          <View style={styles.statCard}>
+          <TouchableOpacity style={[styles.statCard, filterType === 'Upcoming' && { borderColor: '#c0392b', borderWidth: 1.5 }]} onPress={() => setFilterType('Upcoming')}>
             <Text style={[styles.statNum, { color: '#c0392b' }]}>{upcomingCount}</Text>
             <Text style={styles.statLbl}>Upcoming</Text>
-          </View>
-          <View style={styles.statCard}>
+          </TouchableOpacity>
+          <TouchableOpacity style={[styles.statCard, filterType === 'Past' && { borderColor: '#1a2d5a', borderWidth: 1.5 }]} onPress={() => setFilterType('Past')}>
             <Text style={[styles.statNum, { color: '#1a2d5a' }]}>{pastCount}</Text>
             <Text style={styles.statLbl}>Past Events</Text>
-          </View>
+          </TouchableOpacity>
         </View>
 
-        <Text style={styles.listLabel}>Upcoming events</Text>
+        <Text style={styles.listLabel}>{filterType === 'Upcoming' ? 'Upcoming events' : 'Past events'}</Text>
 
         {events
-          .filter(e => e.date >= today)
+          .filter(e => filterType === 'Upcoming' ? e.date >= today : e.date < today)
+          .sort((a, b) => filterType === 'Upcoming' 
+             ? new Date(a.date).getTime() - new Date(b.date).getTime() 
+             : new Date(b.date).getTime() - new Date(a.date).getTime()
+          )
           .map((event, idx) => (
           <View key={event.id} style={[styles.eventItem, idx === 0 && styles.featuredItem]}>
             <TouchableOpacity style={[styles.eiThumb, { backgroundColor: event.bannerColor || '#1a2d5a' }]} onPress={() => handleEdit(event)}>
@@ -188,7 +207,7 @@ export default function AdminEventList() {
                     {(event.status || 'Published').toUpperCase()}
                   </Text>
                 </View>
-                <TouchableOpacity onPress={() => handleDelete(event.id, event.name)} style={{ padding: 4 }}>
+                <TouchableOpacity onPress={() => handleDelete(event)} style={{ padding: 4 }}>
                   <Trash2 size={16} color="#ef4444" />
                 </TouchableOpacity>
               </View>

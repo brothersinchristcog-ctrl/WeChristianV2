@@ -88,8 +88,15 @@ export default function SermonsScreen({ navigation }: any) {
   // Build grouped sections
   const buildSections = () => {
     const filtered = activeCategory === 'All' ? sermons : sermons.filter(s => {
-      if (activeCategory === 'Uncategorized') return !s.categories || s.categories.length === 0;
-      return s.categories && s.categories.includes(activeCategory);
+      let catsArray: string[] = [];
+      if (typeof s.categories === 'string' && s.categories.trim().length > 0) {
+        catsArray = s.categories.split(';').map(c => c.trim()).filter(Boolean);
+      } else if (Array.isArray(s.categories)) {
+        catsArray = s.categories;
+      }
+      
+      if (activeCategory === 'Uncategorized') return catsArray.length === 0;
+      return catsArray.includes(activeCategory);
     });
 
     if (activeCategory !== 'All') {
@@ -99,9 +106,15 @@ export default function SermonsScreen({ navigation }: any) {
     // Group by ALL categories
     const grouped: Record<string, any[]> = {};
     filtered.forEach(sermon => {
-      const cats = sermon.categories && sermon.categories.length > 0
-        ? sermon.categories
-        : ['Uncategorized'];
+      let cats: string[] = [];
+      if (typeof sermon.categories === 'string' && sermon.categories.trim().length > 0) {
+        cats = sermon.categories.split(';').map(c => c.trim()).filter(Boolean);
+      } else if (Array.isArray(sermon.categories) && sermon.categories.length > 0) {
+        cats = sermon.categories;
+      }
+      
+      if (cats.length === 0) cats = ['Uncategorized'];
+
       cats.forEach((cat: string) => {
         if (!grouped[cat]) grouped[cat] = [];
         grouped[cat].push(sermon);
@@ -119,9 +132,7 @@ export default function SermonsScreen({ navigation }: any) {
     <TouchableOpacity 
       style={[styles.sermonCard, { backgroundColor: isDark ? '#1e293b' : '#fff', borderColor: isDark ? '#334155' : '#f1f5f9' }]}
       onPress={() => navigation.navigate('SermonVideo', { 
-        youtubeId: item.youtubeId, 
-        videoTitle: item.title,
-        pastor: item.pastor 
+        sermonData: item
       })}
     >
       <View style={[styles.scThumb, { backgroundColor: isDark ? '#0f172a' : '#0f172a' }]}>

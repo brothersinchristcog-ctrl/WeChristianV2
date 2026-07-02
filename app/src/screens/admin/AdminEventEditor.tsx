@@ -62,6 +62,14 @@ const RECURRING_OPTIONS = [
   { label: 'Monthly (same date)', value: 'Monthly' }
 ];
 
+const DURATION_OPTIONS = [
+  { label: 'For 1 month', value: 1 },
+  { label: 'For 2 months', value: 2 },
+  { label: 'For 3 months', value: 3 },
+  { label: 'For 6 months', value: 6 },
+  { label: 'For 1 year', value: 12 }
+];
+
 const PUBLISH_STATUS_OPTIONS = [
   { label: 'Draft — not visible to members', value: 'Draft' },
   { label: 'Publish now — visible to all members', value: 'Published' },
@@ -84,6 +92,7 @@ export default function AdminEventEditor() {
   const [startTime, setStartTime] = useState('09:00 AM');
   const [endTime, setEndTime] = useState('12:00 PM');
   const [recurring, setRecurring] = useState('One-time event');
+  const [recurrenceDuration, setRecurrenceDuration] = useState(1);
   const [publishStatus, setPublishStatus] = useState('Published');
 
   const [venueEn, setVenueEn] = useState('');
@@ -105,6 +114,7 @@ export default function AdminEventEditor() {
   // UI State
   const [showTypeDropdown, setShowTypeDropdown] = useState(false);
   const [showRecurringDropdown, setShowRecurringDropdown] = useState(false);
+  const [showDurationDropdown, setShowDurationDropdown] = useState(false);
   const [showStatusDropdown, setShowStatusDropdown] = useState(false);
 
   const [isDatePickerVisible, setDatePickerVisibility] = useState(false);
@@ -191,6 +201,7 @@ export default function AdminEventEditor() {
       setAudience(editingData.audience || 'All members');
       setPublishStatus(editingData.status || 'Published');
       setRecurring(editingData.recurring || 'One-time event');
+      setRecurrenceDuration(editingData.recurrenceDuration || 1);
       setBannerUrl(editingData.bannerUrl || '');
       setBannerColor(editingData.bannerColor || '#c0392b');
     }
@@ -202,25 +213,19 @@ export default function AdminEventEditor() {
   };
 
   const uploadImageToCloud = async (localUri: string): Promise<string> => {
-    const filename = localUri.split('/').pop() || `img_${Date.now()}.jpg`;
-    
-    // Read local file as Base64 string
-    const base64Data = await FileSystem.readAsStringAsync(localUri, {
-      encoding: 'base64',
-    });
-
-    const { functions } = require('../../services/firebaseConfig');
-    const uploadFunc = functions().httpsCallable('uploadEventImage');
-    
-    const response = await uploadFunc({
-      image: base64Data,
-      fileName: filename
-    });
-
-    if (response.data?.success && response.data?.url) {
-      return response.data.url;
+    try {
+      const storage = require('@react-native-firebase/storage').default;
+      const ext = localUri.substring(localUri.lastIndexOf('.') + 1) || 'jpg';
+      const storagePath = `events/posters/event_${Date.now()}.${ext}`;
+      
+      const reference = storage().ref(storagePath);
+      await reference.putFile(localUri);
+      const downloadURL = await reference.getDownloadURL();
+      return downloadURL;
+    } catch (error) {
+      console.error('Storage upload failed:', error);
+      throw new Error('Cloud upload failed');
     }
-    throw new Error('Cloud upload failed');
   };
 
   const confirmJSTime = (target: 'start' | 'end') => {
@@ -266,8 +271,9 @@ export default function AdminEventEditor() {
   const [showSuccess, setShowSuccess] = useState(false);
 
   const handleSave = async (status: 'Published' | 'Draft') => {
-    setPublishStatus(status);
-    setLoading(true);
+    const executeSave = async (updateMode?: 'single' | 'future') => {
+      setPublishStatus(status);
+      setLoading(true);
     // 🛠️ FIX: Re-format date for Salesforce (wants YYYY-MM-DD)
     const dateParts = date.split('-');
     const sfDate = `${dateParts[2]}-${dateParts[1]}-${dateParts[0]}`;
@@ -335,26 +341,58 @@ export default function AdminEventEditor() {
 
     const payload = {
       id: editingData?.id,
-      titleEn, titleTe, date: sfDate,
+      // Save under BOTH field names so all screens (admin + member) can read them
+      titleEn, titleTe,
+      name: titleEn,          // AdminEventList reads event.name
+      title: titleEn,         // EventsScreen reads item.title
+      titleTelugu: titleTe,   // EventsScreen reads item.titleTelugu
+      date: sfDate,
       startTime: formatToSFTime(startTime),
       endTime: formatToSFTime(endTime),
       descEn, descTe, venueEn, venueTe, address,
+      location: venueEn,      // EventsScreen reads item.location
       eventType: resolveValue('types', eventType),
+      type: resolveValue('types', eventType),
       mode: resolveValue('modes', mode),
       rsvpEnabled, rsvpPublic,
       audience: resolveValue('audiences', audience),
       publishStatus: resolveStatus(status),
+      status: resolveStatus(status),
       bannerColor,
       bannerUrl,
+      image: bannerUrl,
       recurring: resolveValue('recurring', recurring),
+      recurrenceDuration,
       notifyOnPublish, reminder1Day, reminder1Hour,
-      rsvpCap: capAttendance ? 100 : 0
+      rsvpCap: capAttendance ? 100 : 0,
+      updateMode
     };
 
     console.log('📤 [AdminEventEditor] Saving Payload:', JSON.stringify(payload, null, 2));
 
     try {
       await FirestoreService.createEvent(payload);
+
+      // 🔔 Push notification to all members when publishing
+      if (notifyOnPublish && status === 'Published') {
+        try {
+          const { getFirestore, collection, addDoc, serverTimestamp } = require('@react-native-firebase/firestore');
+          const churchId = await FirestoreService.getChurchId();
+          const db = getFirestore();
+          await addDoc(collection(db, 'broadcasts'), {
+            title: `📅 New Event: ${titleEn}`,
+            content: `Join us for "${titleEn}" on ${sfDate} at ${startTime}${venueEn ? ` · ${venueEn}` : ''}. ${descEn ? descEn.substring(0, 100) : ''}`,
+            date: sfDate,
+            type: 'event',
+            targetChurchId: churchId,
+            createdAt: serverTimestamp()
+          });
+          console.log('🔔 Event push notification queued.');
+        } catch (notifErr) {
+          console.warn('⚠️ Event push notification failed (non-critical):', notifErr);
+        }
+      }
+
       setShowSuccess(true);
     } catch (err) {
       console.error('❌ [AdminEventEditor] Save Failed:', err);
@@ -367,8 +405,23 @@ export default function AdminEventEditor() {
       } else {
         alert(`Error saving event: ${err}`);
       }
-    } finally {
-      setLoading(false);
+      } finally {
+        setLoading(false);
+      }
+    };
+
+    if (editingData?.recurringGroupId) {
+      Alert.alert(
+        'Recurring Event',
+        'You are editing a recurring event. Do you want to update only this specific occurrence, or this and all future occurrences?',
+        [
+          { text: 'Cancel', style: 'cancel' },
+          { text: 'Only this event', onPress: () => executeSave('single') },
+          { text: 'This and future events', onPress: () => executeSave('future') }
+        ]
+      );
+    } else {
+      executeSave();
     }
   };
 
@@ -685,6 +738,31 @@ export default function AdminEventEditor() {
           )}
         </View>
 
+        {recurring !== 'One-time event' && (
+          <View style={styles.inputGroup}>
+            <Text style={styles.label}>Repeat for how long?</Text>
+            <TouchableOpacity style={styles.dropdown} onPress={() => setShowDurationDropdown(!showDurationDropdown)}>
+              <Text style={styles.dropdownTxt}>
+                {DURATION_OPTIONS.find((o: any) => o.value === recurrenceDuration)?.label || `For ${recurrenceDuration} months`}
+              </Text>
+              <ChevronDown size={16} color="#64748b" />
+            </TouchableOpacity>
+            {showDurationDropdown && (
+              <View style={styles.dropdownMenuStatic}>
+                {DURATION_OPTIONS.map((o: any) => (
+                  <TouchableOpacity
+                    key={o.value}
+                    style={[styles.dropdownItem, recurrenceDuration === o.value && styles.dropdownItemActive]}
+                    onPress={() => { setRecurrenceDuration(o.value); setShowDurationDropdown(false); }}
+                  >
+                    <Text style={[styles.dropdownItemTxt, recurrenceDuration === o.value && styles.dropdownItemTxtActive]}>{o.label}</Text>
+                  </TouchableOpacity>
+                ))}
+              </View>
+            )}
+          </View>
+        )}
+
         {/* ── SECTION 3: LOCATION ── */}
         <SectionHeader icon={MapPin} title="Location" color="#15803D" />
 
@@ -860,7 +938,7 @@ export default function AdminEventEditor() {
           <View style={styles.previewHeader}>
             <View style={styles.previewChurchIcon} />
             <View style={{ flex: 1, marginLeft: 8 }}>
-              <Text style={styles.previewChurchName}>Church of GOD · Now</Text>
+              <Text style={styles.previewChurchName}>Your Church · Now</Text>
               <Text style={styles.previewNotifyTitle}>New Event — {titleEn || 'Event Title'}</Text>
               <Text style={styles.previewNotifySub}>{date} · {startTime} · {venueEn || 'Venue'} · Tap to RSVP</Text>
             </View>

@@ -40,7 +40,7 @@ export declare const checkContactExists: import("firebase-functions/v2/https").C
 /**
  * 🔔 NOTIFY MEMBERS
  */
-export declare const notifyMembers: import("firebase-functions/v2/https").HttpsFunction;
+export declare const notifyMembersV2: import("firebase-functions/v2/https").HttpsFunction;
 /**
  * ⏰ AUTOMATED DAILY PROMISE SCHEDULER
  * Scheduled to run every day at 07:00 AM IST (01:30 AM UTC)
@@ -92,5 +92,5 @@ export declare const triggerTestYouTubeLive: import("firebase-functions/v2/https
     message?: never;
 }>, unknown>;
 export { initiatePhonePePayment, phonepeWebhook } from './phonepe.js';
-export * from './whatsapp.js';
+export { onPersonalGreetingCreated, testWhatsApp } from './whatsapp.js';
 //# sourceMappingURL=index.d.ts.map

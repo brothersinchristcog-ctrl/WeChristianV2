@@ -31,8 +31,13 @@ import {
 } from 'lucide-react-native';
 import Theme from '../../theme/Theme';
 import FirestoreService from '../../services/FirestoreService';
+import { firestore, FieldValue } from '../../services/firebaseConfig';
+import auth from '@react-native-firebase/auth';
+
+import { useChurch } from '../../context/ChurchContext';
 
 export default function SignUpScreen({ navigation }: any) {
+  const { churchId, activeChurch } = useChurch();
   const [loading, setLoading] = useState(false);
   const [showDuplicateModal, setShowDuplicateModal] = useState(false);
   const [isDatePickerVisible, setDatePickerVisibility] = useState(false);
@@ -106,33 +111,32 @@ export default function SignUpScreen({ navigation }: any) {
         return;
       }
 
-      // 3. Create Salesforce Member
-      const result = await FirestoreService.createMember({ ...formData });
-      if (result.success) {
-        // 4. Update Firebase Profile so name is available instantly
-        try {
-          const currentUser = require('@react-native-firebase/auth').default().currentUser;
-          if (currentUser) {
-            await currentUser.updateProfile({
-              displayName: formData.firstName
-            });
-          }
-        } catch (profileErr) {
-          console.warn('Profile name sync failed, but member created:', profileErr);
-        }
-
-        if (result.warnings) {
-          Alert.alert(
-            'Partially Saved',
-            'Member created but some fields failed to sync:\n\n' + result.warnings.join('\n'),
-            [{ text: 'OK', onPress: () => navigation.navigate('RegistrationSuccess') }]
-          );
-        } else {
-          navigation.navigate('RegistrationSuccess');
-        }
+      // Format phone number for Firebase
+      let cleanNum = formData.phone.replace(/[^0-9+]/g, '');
+      if (cleanNum.length === 10 && !cleanNum.startsWith('+')) {
+        cleanNum = `+91${cleanNum}`;
       }
+      
+      if (!cleanNum.startsWith('+') || cleanNum.length < 12) {
+        Alert.alert('Invalid Number', 'Please enter a valid 10-digit phone number.');
+        setLoading(false);
+        return;
+      }
+
+      // Send OTP
+      const confirmation = await auth().signInWithPhoneNumber(cleanNum);
+      
+      // Navigate to OTP screen and pass the formData so it can be saved after verification
+      navigation.navigate('VerifyOtp', { 
+        confirmation, 
+        phoneNumber: cleanNum,
+        formData: formData, // Pass all form data to save after OTP
+        isSignUp: true      // Flag to indicate this is a new registration
+      });
+
     } catch (error: any) {
-      Alert.alert('Registration Error', error.message || 'Unable to create account. Please try again.');
+      Alert.alert('Registration Error', error.message || 'Unable to send SMS. Please check your connection.');
+    } finally {
       setLoading(false);
     }
   };
@@ -162,7 +166,7 @@ export default function SignUpScreen({ navigation }: any) {
 
           <View style={styles.introBox}>
             <Text style={styles.introTitle}>Welcome to Our Family 🙏</Text>
-            <Text style={styles.introSub}>Please fill in your details to join the Church of God community.</Text>
+            <Text style={styles.introSub}>Please fill in your details to join the {activeChurch?.name || 'WeChristian'} community.</Text>
           </View>
 
           {/* ── Section 1: Personal ── */}
@@ -243,7 +247,6 @@ export default function SignUpScreen({ navigation }: any) {
                 <InputRow label="Baptism Church" value={formData.baptismChurch} onChange={(v: string) => handleInputChange('baptismChurch', v)} placeholder="Church Name" />
               </View>
             )}
-            <InputRow label="Current Church Name" value={formData.churchName} onChange={(v: string) => handleInputChange('churchName', v)} placeholder="COG Branch Name" />
           </View>
 
           {/* ── Section 3: Contact ── */}

@@ -14,18 +14,19 @@ import { ChevronLeft, Target, Eye, Heart } from 'lucide-react-native';
 import firestore from '@react-native-firebase/firestore';
 
 interface AboutUsData {
+  churchName: string;
+  churchSubtitle: string;
   description: string;
   mission: string;
   vision: string;
 }
 
 const DEFAULT: AboutUsData = {
-  description:
-    'Welcome to Brothers in Christ Fellowship — Church of God. We are a Spirit-filled, family-oriented congregation dedicated to sharing the love of Jesus Christ with our community and the world.',
-  mission:
-    'To share the Gospel of Jesus Christ, make disciples of all nations, and serve our community with love and compassion.',
-  vision:
-    'To see every family in our community transformed by the power of God and rooted in His Word.',
+  churchName: '',
+  churchSubtitle: '',
+  description: '',
+  mission: '',
+  vision: '',
 };
 
 export default function AboutUsScreen() {
@@ -42,6 +43,8 @@ export default function AboutUsScreen() {
           if (doc.exists()) {
             const d = doc.data() as AboutUsData;
             setData({
+              churchName: d.churchName || DEFAULT.churchName,
+              churchSubtitle: d.churchSubtitle || DEFAULT.churchSubtitle,
               description: d.description || DEFAULT.description,
               mission: d.mission || DEFAULT.mission,
               vision: d.vision || DEFAULT.vision,
@@ -87,8 +90,8 @@ export default function AboutUsScreen() {
                 resizeMode="contain"
               />
             </View>
-            <Text style={styles.churchName}>Church of GOD</Text>
-            <Text style={styles.churchSubtitle}>Brothers in Christ Fellowship</Text>
+            <Text style={styles.churchName}>{data.churchName}</Text>
+            <Text style={styles.churchSubtitle}>{data.churchSubtitle}</Text>
             <View style={styles.goldDivider} />
             <Text style={styles.descriptionText}>{data.description}</Text>
           </View>

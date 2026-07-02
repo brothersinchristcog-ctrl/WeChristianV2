@@ -74,7 +74,7 @@ export const checkContactExists = onCall({ invoker: 'public' }, async (request) 
 /**
  * 🔔 NOTIFY MEMBERS
  */
-export const notifyMembers = onRequest(async (request, response) => {
+export const notifyMembersV2 = onRequest(async (request, response) => {
     const { title, body, target, type } = request.body;
     if (!title || !body) {
         response.status(400).send({ success: false, error: 'Missing title or body' });
@@ -413,11 +413,14 @@ export const onBroadcastCreatedV2 = onDocumentCreated({
     try {
         const db = getDb();
         let query = db.collection('users');
+        // Filter by target church if provided (Multi-tenant isolation)
+        if (data.targetChurchId) {
+            query = query.where('primaryChurchId', '==', data.targetChurchId);
+        }
         // Filter by target phone number if provided (for individual greetings)
         if (data.targetPhone) {
-            const rawDigits = data.targetPhone.replace(/\D/g, '');
-            const last10 = rawDigits.slice(-10);
-            query = query.where('phone', '>=', last10).where('phone', '<=', last10 + '\uf8ff');
+            // We do NOT use query.where() here because if the DB stores +91... it will fail the lexicographical >= check
+            // We will rely on the in-memory .includes() check below instead.
         }
         const snapshotUsers = await query.get();
         const tokenSet = new Set();
@@ -677,8 +680,5 @@ export const triggerTestYouTubeLive = onCall({ invoker: 'public' }, async (reque
 });
 // Export PhonePe Integration
 export { initiatePhonePePayment, phonepeWebhook } from './phonepe.js';
-// Export WhatsApp Integration
-export * from './whatsapp.js';
-// Trigger ment
-//
+export { onPersonalGreetingCreated, testWhatsApp } from './whatsapp.js';
 //# sourceMappingURL=index.js.map

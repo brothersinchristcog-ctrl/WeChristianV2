@@ -84,7 +84,7 @@ export default function AdminSermonEditor() {
     titleEn: '',
     titleTe: '',
     pastor: '',
-    date: new Date().toLocaleDateString('en-CA'),
+    date: (() => { const d = new Date(); return `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, '0')}-${String(d.getDate()).padStart(2, '0')}`; })(),
     ref: '',
     duration: '',
     youtubeId: '',
@@ -108,7 +108,7 @@ export default function AdminSermonEditor() {
         titleEn: editingData.title || '',
         titleTe: editingData.titleTelugu || '',
         pastor: editingData.pastor || '',
-        date: editingData.date || new Date().toLocaleDateString('en-CA'),
+        date: editingData.date || (() => { const d = new Date(); return `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, '0')}-${String(d.getDate()).padStart(2, '0')}`; })(),
         ref: editingData.scripture || '',
         duration: editingData.duration || '45 mins',
         youtubeId: editingData.youtubeId || '',
@@ -160,11 +160,34 @@ export default function AdminSermonEditor() {
       const payload = {
         id: editingData?.id,
         ...form,
+        title: form.titleEn,
+        titleTelugu: form.titleTe,
         status: status || form.status,
         scripture: form.ref,
         categories: selectedCategories.join(';')
       };
       await FirestoreService.createSermon(payload);
+
+      // 🔔 Push notification to all members when publishing
+      if (payload.status === 'Published') {
+        try {
+          const { getFirestore, collection, addDoc, serverTimestamp } = require('@react-native-firebase/firestore');
+          const churchId = await FirestoreService.getChurchId();
+          const db = getFirestore();
+          await addDoc(collection(db, 'broadcasts'), {
+            title: `🎙️ New Sermon: ${form.titleEn}`,
+            content: `New sermon "${form.titleEn}" by ${form.pastor || 'Pastor'} is now available. Watch/listen now!`,
+            date: form.date,
+            type: 'sermon',
+            targetChurchId: churchId,
+            createdAt: serverTimestamp()
+          });
+          console.log('🔔 Sermon push notification queued.');
+        } catch (notifErr) {
+          console.warn('⚠️ Sermon push notification failed:', notifErr);
+        }
+      }
+
       setShowSuccess(true);
     } catch (err: any) {
       setErrorMsg(err.message || 'Failed to save to Salesforce. Please check your connection.');
@@ -363,7 +386,7 @@ export default function AdminSermonEditor() {
           <View style={styles.notifPreview}>
             <View style={styles.notifHeader}>
               <View style={styles.notifLogo}><Text style={{fontSize: 6, color: '#fff', fontWeight: '800'}}>CG</Text></View>
-              <Text style={styles.notifHeaderTxt}>Church of GOD · Now</Text>
+              <Text style={styles.notifHeaderTxt}>Your Church · Now</Text>
             </View>
             <Text style={styles.notifTitle}>New Sermon 🎙️</Text>
             <Text style={styles.notifBody}>Sermon title · Pastor name · Watch now</Text>
