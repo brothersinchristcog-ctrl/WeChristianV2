@@ -17,6 +17,7 @@ functions/lib/
 service-account-key.json
 serviceKey.json
 *servicekey*.json
+serviceAccountKey.json
 KEYS_FOR_SALESFORCE/
 GoogleService-Info.plist
 *.pem
