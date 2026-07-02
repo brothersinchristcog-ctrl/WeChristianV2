@@ -1,4 +1,3 @@
-import * as functionsCompat from 'firebase-functions/v1';
 /**
  * 📖 GET DAILY PROMISE
  */
@@ -61,7 +60,9 @@ export declare const automatedDailyAnniversaries: import("firebase-functions/v2/
  * 📣 ON BROADCAST CREATED TRIGGER (Gen 2)
  * Automatically sends push notifications when a new broadcast is added to Firestore (e.g. Emergency Meeting or custom admin updates)
  */
-export declare const processBroadcastPushNotifications: functionsCompat.CloudFunction<functionsCompat.firestore.QueryDocumentSnapshot>;
+export declare const onBroadcastCreatedV2: import("firebase-functions/core").CloudFunction<import("firebase-functions/v2/firestore").FirestoreEvent<import("firebase-functions/v2/firestore").QueryDocumentSnapshot | undefined, {
+    broadcastId: string;
+}>>;
 /**
  * 📤 UPLOAD EVENT IMAGE
  */
@@ -90,4 +91,6 @@ export declare const triggerTestYouTubeLive: import("firebase-functions/v2/https
     broadcastId: any;
     message?: never;
 }>, unknown>;
+export { initiatePhonePePayment, phonepeWebhook } from './phonepe.js';
+export { onPersonalGreetingCreated, testWhatsApp } from './whatsapp.js';
 //# sourceMappingURL=index.d.ts.map

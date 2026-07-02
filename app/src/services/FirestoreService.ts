@@ -172,10 +172,10 @@ class FirestoreService {
     const rawDigits = phone.replace(/\D/g, '');
     const last10 = rawDigits.slice(-10);
     const plus91 = `+91${last10}`;
-    
+
     try {
       if (!churchId) churchId = await this.getChurchId() || undefined;
-      
+
       if (!churchId) return { exists: false };
 
       // Query both common formats
@@ -186,13 +186,14 @@ class FirestoreService {
         .where('phone', 'in', [last10, plus91, phone])
         .limit(1)
         .get();
-        
+
       if (!snapshot.empty) {
         const doc = snapshot.docs[0];
         return { exists: true, member: { id: doc.id, ...doc.data() } };
       }
       return { exists: false };
     } catch (error) {
+      console.error('Error in checkContactExists:', error);
       return { exists: false };
     }
   }
@@ -223,7 +224,7 @@ class FirestoreService {
       await firestore().collection('users').doc(uid).update({
         lastLogin: FieldValue.serverTimestamp()
       });
-      
+
       const churchId = await this.getChurchId();
       if (churchId) {
         await firestore().collection('churches').doc(churchId).collection('members').doc(uid).update({
@@ -279,11 +280,11 @@ class FirestoreService {
     try {
       const col = await this.getCollection('members');
       const snapshot = await col.get();
-      return snapshot.docs.map((doc: any) => ({ 
-        id: doc.id, 
+      return snapshot.docs.map((doc: any) => ({
+        id: doc.id,
         name: doc.data().name || doc.data().firstName || 'Unknown',
         email: doc.data().email || '',
-        ...doc.data() 
+        ...doc.data()
       }));
     } catch (error) {
       console.error('Error fetching all members:', error);
@@ -295,11 +296,11 @@ class FirestoreService {
     try {
       const col = await this.getCollection('members');
       const snapshot = await col.where('userType', '==', 'Admin').get();
-      return snapshot.docs.map((doc: any) => ({ 
-        id: doc.id, 
+      return snapshot.docs.map((doc: any) => ({
+        id: doc.id,
         name: doc.data().name || doc.data().firstName || 'Unknown',
         email: doc.data().email || '',
-        ...doc.data() 
+        ...doc.data()
       }));
     } catch (error) {
       console.error('Error fetching admin members:', error);
@@ -502,7 +503,7 @@ class FirestoreService {
       const textVal = data.text || data.request || data.requestEn || '';
       const textTeVal = data.textTe || data.requestTe || '';
       const authorIdVal = data.authorId || data.contactId || null;
-      
+
       await col.add({
         ...data,
         text: textVal,
@@ -600,7 +601,7 @@ class FirestoreService {
       const col = await this.getCollection('promises');
       // Strip undefined values to prevent Firestore errors
       const cleanData = Object.fromEntries(Object.entries(data).filter(([_, v]) => v !== undefined));
-      
+
       if (cleanData.id) {
         await col.doc(cleanData.id as string).set({ ...cleanData, updatedAt: FieldValue.serverTimestamp() }, { merge: true });
         return cleanData.id;
@@ -698,13 +699,13 @@ class FirestoreService {
     // Note: JavaScript months are 0-indexed
     let current = new Date(year, month - 1, day);
     const endDate = new Date(year, month - 1 + Number(monthsAhead), day);
-    
+
     while (current <= endDate) {
       const y = current.getFullYear();
       const m = String(current.getMonth() + 1).padStart(2, '0');
       const d = String(current.getDate()).padStart(2, '0');
       dates.push(`${y}-${m}-${d}`);
-      
+
       if (recurringType === 'Every week' || recurringType === 'Every Sunday') {
         current.setDate(current.getDate() + 7);
       } else if (recurringType === 'Monthly') {
@@ -725,59 +726,59 @@ class FirestoreService {
   async createEvent(data: any) {
     try {
       const col = await this.getCollection('events');
-      
+
       // Extract custom update mode if passed
       const updateMode = data.updateMode; // 'single' | 'future'
       delete data.updateMode;
-      
+
       const cleanData = Object.fromEntries(Object.entries(data).filter(([_, v]) => v !== undefined));
-      
+
       if (cleanData.id) {
         // UPDATING EXISTING
         if (cleanData.recurringGroupId && updateMode === 'future') {
-           const allDocs = await col.where('recurringGroupId', '==', cleanData.recurringGroupId).get();
-           const batch = firestore().batch();
-           allDocs.docs.forEach(doc => {
-             const oldData = doc.data();
-             if (oldData.date >= (cleanData.date as string)) {
-               const docRef = col.doc(doc.id);
-               // Preserve the original specific date of the future occurrence
-               const updatePayload = { ...cleanData, date: oldData.date, id: doc.id, updatedAt: FieldValue.serverTimestamp() };
-               batch.set(docRef, updatePayload, { merge: true });
-             }
-           });
-           await batch.commit();
-           return cleanData.id;
+          const allDocs = await col.where('recurringGroupId', '==', cleanData.recurringGroupId).get();
+          const batch = firestore().batch();
+          allDocs.docs.forEach(doc => {
+            const oldData = doc.data();
+            if (oldData.date >= (cleanData.date as string)) {
+              const docRef = col.doc(doc.id);
+              // Preserve the original specific date of the future occurrence
+              const updatePayload = { ...cleanData, date: oldData.date, id: doc.id, updatedAt: FieldValue.serverTimestamp() };
+              batch.set(docRef, updatePayload, { merge: true });
+            }
+          });
+          await batch.commit();
+          return cleanData.id;
         } else {
-           await col.doc(cleanData.id as string).set({ ...cleanData, updatedAt: FieldValue.serverTimestamp() }, { merge: true });
-           return cleanData.id;
+          await col.doc(cleanData.id as string).set({ ...cleanData, updatedAt: FieldValue.serverTimestamp() }, { merge: true });
+          return cleanData.id;
         }
       } else {
         // CREATING NEW
         const isRecurring = cleanData.recurring && cleanData.recurring !== 'One-time event';
-        
+
         if (isRecurring && !cleanData.recurringGroupId) {
           const groupId = `req_${Date.now()}_${Math.floor(Math.random() * 1000)}`;
           cleanData.recurringGroupId = groupId;
-          
+
           const monthsAhead = (cleanData.recurrenceDuration as number) || 1;
           const futureDates = this.generateRecurringDates(cleanData.date as string, cleanData.recurring as string, monthsAhead);
           const batch = firestore().batch();
-          
+
           let firstId = '';
           futureDates.forEach((dateStr, index) => {
             const docRef = col.doc();
             if (index === 0) firstId = docRef.id;
-            
-            const instanceData = { 
-              ...cleanData, 
-              id: docRef.id, 
-              date: dateStr, 
-              createdAt: FieldValue.serverTimestamp() 
+
+            const instanceData = {
+              ...cleanData,
+              id: docRef.id,
+              date: dateStr,
+              createdAt: FieldValue.serverTimestamp()
             };
             batch.set(docRef, instanceData);
           });
-          
+
           await batch.commit();
           return firstId;
         } else {
@@ -793,25 +794,25 @@ class FirestoreService {
   async deleteEvent(id: string, deleteMode?: 'single' | 'future') {
     try {
       const col = await this.getCollection('events');
-      
+
       if (deleteMode === 'future') {
         const doc = await col.doc(id).get();
         const data = doc.data();
         if (data) {
           if (data.recurringGroupId) {
-             const allDocs = await col.where('recurringGroupId', '==', data.recurringGroupId).get();
-             const batch = firestore().batch();
-             allDocs.docs.forEach(d => {
-               if (d.data().date >= data.date) {
-                 batch.delete(d.ref);
-               }
-             });
-             await batch.commit();
-             return true;
+            const allDocs = await col.where('recurringGroupId', '==', data.recurringGroupId).get();
+            const batch = firestore().batch();
+            allDocs.docs.forEach(d => {
+              if (d.data().date >= data.date) {
+                batch.delete(d.ref);
+              }
+            });
+            await batch.commit();
+            return true;
           }
         }
       }
-      
+
       await col.doc(id).delete();
       return true;
     } catch (e) {
@@ -828,7 +829,7 @@ class FirestoreService {
         return docSnap.data()?.notifications || null;
       }
       return null;
-    } catch (error) {
+    } catch (e) {
       return null;
     }
   }
@@ -840,10 +841,213 @@ class FirestoreService {
         updatedAt: FieldValue.serverTimestamp()
       }, { merge: true });
       return true;
+    } catch (e) {
+      throw e;
+    }
+  }
+
+  // --- 👑 Admin Functions ---
+
+  async getAdminMembers(): Promise<any[]> {
+    try {
+      const snapshot = await firestore().collection('member_profiles').get();
+      return snapshot.docs.map(doc => ({ id: doc.id, ...doc.data() }));
+    } catch (e) {
+      return [];
+    }
+  }
+
+  async getAdminPromises(): Promise<any[]> {
+    try {
+      const col = await this.getCollection('dailyPromises');
+      const snapshot = await col.orderBy('date', 'desc').get();
+      return snapshot.docs.map(doc => ({ id: doc.id, ...doc.data() }));
+    } catch (e) {
+      return [];
+    }
+  }
+
+  async getCalendarData(): Promise<any[]> {
+    try {
+      const col = await this.getCollection('dailyPromises');
+      const snapshot = await col.get();
+      return snapshot.docs.map(doc => ({ id: doc.id, ...doc.data() }));
+    } catch (e) {
+      return [];
+    }
+  }
+
+  async getEvents(): Promise<any[]> {
+    try {
+      const col = await this.getCollection('events');
+      const snapshot = await col.get();
+      return snapshot.docs.map(doc => ({ id: doc.id, ...doc.data() }));
+    } catch (e) {
+      return [];
+    }
+  }
+
+  async getDashboardStats(): Promise<any> {
+    try {
+      const [membersSnap, eventsCol, prayerCol, promisesCol] = await Promise.all([
+        firestore().collection('member_profiles').get(),
+        this.getCollection('events'),
+        this.getCollection('prayerRequests'),
+        this.getCollection('dailyPromises'),
+      ]);
+      const [eventsSnap, prayerSnap, promisesSnap] = await Promise.all([
+        eventsCol.get(),
+        prayerCol.get(),
+        promisesCol.get(),
+      ]);
+      return {
+        totalMembers: membersSnap.size,
+        totalEvents: eventsSnap.size,
+        totalPrayers: prayerSnap.size,
+        totalPromises: promisesSnap.size,
+      };
+    } catch (e) {
+      return { totalMembers: 0, totalEvents: 0, totalPrayers: 0, totalPromises: 0 };
+    }
+  }
+
+  // --- 🎂 Celebrations Backend ---
+
+  async getTodayBirthdays(): Promise<any[]> {
+    try {
+      const today = new Date();
+      const mm = String(today.getMonth() + 1).padStart(2, '0');
+      const dd = String(today.getDate()).padStart(2, '0');
+
+      const [profilesSnap, usersSnap] = await Promise.all([
+        firestore().collection('member_profiles').get(),
+        firestore().collection('users').get()
+      ]);
+
+      const allDocs = [...profilesSnap.docs, ...usersSnap.docs];
+
+      return allDocs
+        .map(doc => ({ id: doc.id, ...doc.data() }))
+        .filter((m: any) => {
+          const birthDateStr = m.Birthdate || m.dob;
+          if (!birthDateStr) return false;
+          const parts = birthDateStr.split('-');
+          return parts[1] === mm && parts[2] === dd;
+        })
+        .filter((v, i, a) => a.findIndex(t => (t.phone === v.phone)) === i);
     } catch (error) {
+      return [];
+    }
+  }
+
+  async getTodayAnniversaries(): Promise<any[]> {
+    try {
+      const today = new Date();
+      const mm = String(today.getMonth() + 1).padStart(2, '0');
+      const dd = String(today.getDate()).padStart(2, '0');
+
+      const [profilesSnap, usersSnap] = await Promise.all([
+        firestore().collection('member_profiles').get(),
+        firestore().collection('users').get()
+      ]);
+
+      const allDocs = [...profilesSnap.docs, ...usersSnap.docs];
+
+      return allDocs
+        .map(doc => ({ id: doc.id, ...doc.data() }))
+        .filter((m: any) => {
+          const annivStr = m.Anniversary_Date__c || m.anniversaryDate;
+          if (!annivStr) return false;
+          const parts = annivStr.split('-');
+          return parts[1] === mm && parts[2] === dd;
+        })
+        .filter((v, i, a) => a.findIndex(t => (t.phone === v.phone)) === i);
+    } catch (error) {
+      return [];
+    }
+  }
+
+  async getAllCelebrations(): Promise<any[]> {
+    try {
+      const today = new Date();
+      const mm = String(today.getMonth() + 1).padStart(2, '0');
+      const dd = String(today.getDate()).padStart(2, '0');
+
+      const [profilesSnap, usersSnap] = await Promise.all([
+        firestore().collection('member_profiles').get(),
+        firestore().collection('users').get()
+      ]);
+
+      const allDocs = [...profilesSnap.docs, ...usersSnap.docs];
+
+      return allDocs
+        .map(doc => ({ id: doc.id, ...doc.data() }))
+        .filter((m: any) => {
+          const birthDateStr = m.Birthdate || m.dob;
+          const annivStr = m.Anniversary_Date__c || m.anniversaryDate;
+
+          let hasBday = false;
+          let hasAnniv = false;
+
+          if (birthDateStr) {
+            const bParts = birthDateStr.split('-');
+            if (bParts[1] === mm && bParts[2] === dd) hasBday = true;
+          }
+
+          if (annivStr) {
+            const aParts = annivStr.split('-');
+            if (aParts[1] === mm && aParts[2] === dd) hasAnniv = true;
+          }
+
+          return hasBday || hasAnniv;
+        })
+        .filter((v, i, a) => a.findIndex(t => (t.phone === v.phone)) === i);
+    } catch (error) {
+      return [];
+    }
+  }
+
+  // --- 🔔 Broadcast ---
+
+  async createNotificationBroadcast(data: any): Promise<string> {
+    try {
+      const docRef = await firestore().collection('broadcasts').add({
+        ...data,
+        createdAt: firestore.FieldValue.serverTimestamp()
+      });
+      return docRef.id;
+    } catch (error) {
+      throw error;
+    }
+  }
+
+  async sendPersonalGreeting(contactId: string, phone: string, title: string, body: string, type: string): Promise<boolean> {
+    try {
+      await firestore().collection('broadcasts').add({
+        title,
+        body,
+        type: `personal_${type}`, // personal_birthday or personal_anniversary
+        targetType: 'specific',
+        targetPhones: [phone], // targets specifically this phone number
+        createdAt: firestore.FieldValue.serverTimestamp()
+      });
+      return true;
+    } catch (error) {
+      console.error('Error sending personal greeting:', error);
       return false;
     }
   }
+
+  async markAsAnswered(id: string): Promise<void> {
+    try {
+      const col = await this.getCollection('prayerRequests');
+      await col.doc(id).update({ isAnswered: true, answeredAt: firestore.FieldValue.serverTimestamp() });
+    } catch (error) {
+      throw error;
+    }
+  }
+
+  // --- 🗓️ Pastor Events ---
 
   async createNotificationBroadcast(data: any) {
     try {

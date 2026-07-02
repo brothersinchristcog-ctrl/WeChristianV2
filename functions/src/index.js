@@ -1,6 +1,8 @@
 import { onCall, onRequest, HttpsError } from 'firebase-functions/v2/https';
 import { onSchedule } from 'firebase-functions/v2/scheduler';
+import { setGlobalOptions } from 'firebase-functions/v2';
 import * as functionsCompat from 'firebase-functions/v1';
+setGlobalOptions({ maxInstances: 1, memory: '256MiB', concurrency: 80 });
 import { initializeApp } from 'firebase-admin/app';
 import { getFirestore, FieldValue } from 'firebase-admin/firestore';
 import { getMessaging } from 'firebase-admin/messaging';
@@ -248,7 +250,8 @@ export const automatedDailyBirthdays = onSchedule({ schedule: '0 6 * * *', timeZ
                 title: `🎂 Happy Birthday, ${member.name}!`,
                 content: personalGreeting,
                 date: dateStr,
-                type: 'birthday',
+                type: 'personal_birthday',
+                targetPhones: member.phone ? [member.phone] : [],
                 silent: true,
                 createdAt: FieldValue.serverTimestamp()
             });
@@ -334,7 +337,8 @@ export const automatedDailyAnniversaries = onSchedule({ schedule: '30 6 * * *', 
                 title: `💐 Happy Wedding Anniversary!`,
                 content: personalGreeting,
                 date: dateStr,
-                type: 'anniversary',
+                type: 'personal_anniversary',
+                targetPhones: [ann.husbandPhone, ann.wifePhone].filter(Boolean),
                 silent: true,
                 createdAt: FieldValue.serverTimestamp()
             });
@@ -387,27 +391,25 @@ import { onDocumentCreated } from 'firebase-functions/v2/firestore';
  * 📣 ON BROADCAST CREATED TRIGGER (Gen 2)
  * Automatically sends push notifications when a new broadcast is added to Firestore (e.g. Emergency Meeting or custom admin updates)
  */
-export const processBroadcastPushNotifications = functionsCompat
-    .region('us-central1')
-    .firestore
-    .document('broadcasts/{messageId}')
-    .onCreate(async (snapshot, context) => {
-    if (!snapshot) {
+export const onBroadcastCreatedV2 = onDocumentCreated({
+    document: 'broadcasts/{broadcastId}',
+    region: 'asia-south1'
+}, async (event) => {
+    const data = event.data?.data();
+    const context = { params: event.params };
+    if (!data) {
         console.log('No data associated with the event');
         return;
     }
-    const data = snapshot.data();
-    if (!data)
-        return;
     // Skip if silent/already handled by scheduler
     if (data.silent === true) {
-        console.log(`🛑 Skipping broadcast push for silent document: ${context.params.messageId}`);
+        console.log(`🛑 Skipping broadcast push for silent document: ${context.params.broadcastId}`);
         return;
     }
     const title = data.title || 'Church Update';
     const body = data.content || '';
     const type = data.type || 'general';
-    console.log(`🔔 onBroadcastCreatedV2 fired for: [${title}] type: [${type}]`);
+    console.log(`🔔 onBroadcastCreated (Gen 2) fired for: [${title}] type: [${type}]`);
     try {
         const db = getDb();
         let query = db.collection('users');
@@ -446,7 +448,7 @@ export const processBroadcastPushNotifications = functionsCompat
             },
             data: {
                 type,
-                id: context.params.messageId
+                id: context.params.broadcastId
             },
             android: {
                 priority: 'high',
@@ -676,4 +678,7 @@ export const triggerTestYouTubeLive = onCall({ invoker: 'public' }, async (reque
         throw new HttpsError('internal', error.message);
     }
 });
+// Export PhonePe Integration
+export { initiatePhonePePayment, phonepeWebhook } from './phonepe.js';
+export { onPersonalGreetingCreated, testWhatsApp } from './whatsapp.js';
 //# sourceMappingURL=index.js.map

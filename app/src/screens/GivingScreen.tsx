@@ -1,4 +1,5 @@
 import React, { useState, useEffect } from 'react';
+import { PhonePeService } from '../services/PhonePeService';
 import {
   StyleSheet,
   View,
@@ -82,23 +83,35 @@ export default function GivingScreen({ navigation }: any) {
         phone: user?.phoneNumber || '',
         churchId: activeChurch?.id || ''
       });
-      const formattedAmt = numAmt.toFixed(2);
-      const safePayeeName = payeeName.replace(/[^a-zA-Z0-9 ]/g, "").trim();
       
-      const upiUrl = `upi://pay?pa=${upiId}&pn=${encodeURIComponent(safePayeeName)}&tn=${encodeURIComponent(activeCat)}&am=${formattedAmt}&cu=INR`;
-      const phonepeUrl = `phonepe://pay?pa=${upiId}&pn=${encodeURIComponent(safePayeeName)}&tn=${encodeURIComponent(activeCat)}&am=${formattedAmt}&cu=INR`;
+      // Try PhonePe gateway first, fall back to UPI deep link if not available
+      const paymentResult = await PhonePeService.startPaymentFlow(
+        numAmt, 
+        user?.uid || 'guest', 
+        user?.phoneNumber || ''
+      );
 
-      try {
-        // Try direct PhonePe intent first
-        await Linking.openURL(phonepeUrl);
-      } catch (phonePeError) {
+      if (!paymentResult.success) {
+        // Fallback to direct UPI deep link (works immediately without backend)
+        const formattedAmt = numAmt.toFixed(2);
+        const safePayeeName = payeeName.replace(/[^a-zA-Z0-9 ]/g, "").trim();
+        
+        const upiUrl = `upi://pay?pa=${upiId}&pn=${encodeURIComponent(safePayeeName)}&tn=${encodeURIComponent(activeCat)}&am=${formattedAmt}&cu=INR`;
+        const phonepeUrl = `phonepe://pay?pa=${upiId}&pn=${encodeURIComponent(safePayeeName)}&tn=${encodeURIComponent(activeCat)}&am=${formattedAmt}&cu=INR`;
+
         try {
-          // Fallback to generic UPI chooser
-          await Linking.openURL(upiUrl);
-        } catch (upiError) {
-          Alert.alert('Payment Failed', 'No UPI app found on your device. Please install PhonePe, GPay, or Paytm to continue.');
+          // Try direct PhonePe intent first
+          await Linking.openURL(phonepeUrl);
+        } catch (phonePeError) {
+          try {
+            // Fallback to generic UPI chooser
+            await Linking.openURL(upiUrl);
+          } catch (upiError) {
+            Alert.alert('Payment Failed', 'No UPI app found on your device. Please install PhonePe, GPay, or Paytm to continue.');
+          }
         }
       }
+
     } catch (err) {
       Alert.alert('Error', 'Unable to initiate payment. Please try again.');
     } finally {

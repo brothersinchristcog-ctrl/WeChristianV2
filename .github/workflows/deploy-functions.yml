@@ -1,0 +1,46 @@
+name: Deploy Firebase Functions
+
+on:
+  push:
+    branches:
+      - main
+      - feature/integrations-2026-06-24
+    paths:
+      - 'functions/**'
+
+jobs:
+  deploy:
+    name: Deploy Firebase Functions
+    runs-on: ubuntu-latest
+
+    steps:
+      - name: Checkout code
+        uses: actions/checkout@v4
+
+      - name: Setup Node.js
+        uses: actions/setup-node@v4
+        with:
+          node-version: '22'
+
+
+
+      - name: Install Functions Dependencies
+        run: npm install
+        working-directory: functions
+
+      - name: Build Functions
+        run: npm run build
+        working-directory: functions
+
+      - name: Create .env file for Firebase Functions
+        run: |
+          echo "WA_ACCESS_TOKEN=${{ secrets.WA_ACCESS_TOKEN }}" > .env
+          echo "WA_PHONE_ID=${{ secrets.WA_PHONE_ID }}" >> .env
+        working-directory: functions
+
+      - name: Deploy Functions to Firebase
+        uses: w9jds/firebase-action@master
+        with:
+          args: deploy --only functions --project wechristian-67f07 --force
+        env:
+          GCP_SA_KEY: ${{ secrets.GCP_SA_KEY }}
