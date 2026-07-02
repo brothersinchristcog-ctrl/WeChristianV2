@@ -168,20 +168,6 @@ class FirestoreService {
     }
   }
 
-<<<<<<< HEAD
-  async checkContactExists(phone: string, uid?: string): Promise<any> {
-    const rawDigits = phone.replace(/\D/g, '');
-    const last10 = rawDigits.slice(-10);
-    const withCode = `+91${last10}`;
-
-    try {
-      // 1. Check users collection first (handles admins and already onboarded users)
-      const userSnap1 = await firestore().collection('users').where('phone', '==', last10).limit(1).get();
-      const userSnap2 = await firestore().collection('users').where('phone', '==', withCode).limit(1).get();
-
-      if (!userSnap1.empty) {
-        return { exists: true, member: { id: userSnap1.docs[0].id, ...userSnap1.docs[0].data() } };
-=======
   async checkContactExists(phone: string, churchId?: string): Promise<any> {
     const rawDigits = phone.replace(/\D/g, '');
     const last10 = rawDigits.slice(-10);
@@ -204,29 +190,7 @@ class FirestoreService {
       if (!snapshot.empty) {
         const doc = snapshot.docs[0];
         return { exists: true, member: { id: doc.id, ...doc.data() } };
->>>>>>> v2/main
       }
-      if (!userSnap2.empty) {
-        return { exists: true, member: { id: userSnap2.docs[0].id, ...userSnap2.docs[0].data() } };
-      }
-
-      // 2. Fallback to member_profiles (for newly synced Salesforce contacts)
-      const profileSnap1 = await firestore().collection('member_profiles').where('phone', '==', last10).limit(1).get();
-      const profileSnap2 = await firestore().collection('member_profiles').where('phone', '==', withCode).limit(1).get();
-
-      if (!profileSnap1.empty) {
-        return { exists: true, member: { id: profileSnap1.docs[0].id, ...profileSnap1.docs[0].data() } };
-      }
-      if (!profileSnap2.empty) {
-        return { exists: true, member: { id: profileSnap2.docs[0].id, ...profileSnap2.docs[0].data() } };
-      }
-
-      // 3. Check MobilePhone field just in case
-      const mobileSnap1 = await firestore().collection('member_profiles').where('MobilePhone', '==', last10).limit(1).get();
-      if (!mobileSnap1.empty) {
-        return { exists: true, member: { id: mobileSnap1.docs[0].id, ...mobileSnap1.docs[0].data() } };
-      }
-
       return { exists: false };
     } catch (error) {
       console.error('Error in checkContactExists:', error);
@@ -1074,7 +1038,6 @@ class FirestoreService {
     }
   }
 
-<<<<<<< HEAD
   async markAsAnswered(id: string): Promise<void> {
     try {
       const col = await this.getCollection('prayerRequests');
